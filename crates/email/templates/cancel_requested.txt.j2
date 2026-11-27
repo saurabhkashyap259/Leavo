@@ -1,0 +1,9 @@
+{% extends "layout.txt.j2" %}
+{% block subject %}{{ requester }} asks to cancel {{ leave_type }} for {{ dates }}{% endblock %}
+{% block body %}{{ requester }}'s {{ leave_type }} for {{ dates }} ({{ days_text }}) has already started, and they ask to cancel the rest.
+
+If you accept, {{ returned_text }} from {{ requested_on }} onward go back to their balance. Earlier days stay taken. If you decline, the leave stays as approved.{% if reason %}
+
+Reason: {{ reason }}{% endif %}
+
+Decide in Leavo: {{ inbox_url }}{% endblock %}

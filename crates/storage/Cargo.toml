@@ -1,0 +1,22 @@
+[package]
+name = "leavo-storage"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+async-trait = "0.1.92"
+bytes = "1.12.2"
+infer = "0.22.0"
+leavo-core = { path = "../core" }
+object_store = { version = "0.14.2", features = ["aws"] }
+thiserror = "2.0.21"
+tokio = { version = "1.53.3", features = ["full"] }
+http = "1.4.0"
+
+[dev-dependencies]
+reqwest = "0.12"
+testcontainers = "0.27.3"

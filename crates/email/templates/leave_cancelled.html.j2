@@ -1,0 +1,8 @@
+{% extends "layout.html.j2" %}
+{% block content %}
+{% if to_requester %}<p>Hi {{ requester }},</p>
+<p>Your <strong>{{ leave_type }}</strong> for <strong>{{ dates }}</strong> ({{ days_text }}) is cancelled{% else %}<p><strong>{{ requester }}</strong>'s <strong>{{ leave_type }}</strong> for <strong>{{ dates }}</strong> ({{ days_text }}) is cancelled{% endif %}{% if accepted_by %}; <strong>{{ accepted_by }}</strong> accepted the cancellation{% endif %}.</p>
+<p>{{ returned_text }} went back to the balance.{% if kept_text %} {{ kept_text }} already taken stayed taken.{% endif %}</p>
+{% if reason %}<p style="padding:8px 12px;background:#f6f7f9;border-radius:6px;">{{ reason }}</p>{% endif %}
+{% if to_requester %}<p><a href="{{ base_url }}/leave/history">See your leave in Leavo</a></p>{% endif %}
+{% endblock %}

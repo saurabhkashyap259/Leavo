@@ -1,0 +1,7 @@
+{% extends "layout.txt.j2" %}
+{% block subject %}{{ days_text }} of comp-off expiring on {{ expires_on }}{% endblock %}
+{% block body %}Hi {{ requester }},
+
+{{ days_text }} of comp-off you earned for working on {{ worked_date }} expire on {{ expires_on }}. Apply for comp-off leave before then to use them.
+
+Apply in Leavo: {{ base_url }}/leave/apply{% endblock %}

@@ -1,0 +1,11 @@
+# cargo audit configuration (T230). Every ignore names the advisory and why it does not apply;
+# see SECURITY.md "Dependency and image audits".
+[advisories]
+ignore = [
+    # rsa (Marvin attack): only in Cargo.lock through sqlx's MySQL driver, which Leavo never
+    # enables (PostgreSQL only); `cargo tree --target all -i rsa` is empty.
+    "RUSTSEC-2023-0071",
+    # libsqlite3-sys (C SQLite CVE): only in Cargo.lock through sqlx's SQLite driver, never
+    # enabled; `cargo tree --target all -i libsqlite3-sys` is empty.
+    "RUSTSEC-2026-0459",
+]

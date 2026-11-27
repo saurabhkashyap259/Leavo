@@ -1,0 +1,11 @@
+{% extends "layout.txt.j2" %}
+{% block subject %}Your leave balances for {{ year }}{% endblock %}
+{% block body %}Hi {{ requester }},
+
+The {{ year }} leave year has started. Your balances:
+
+{% for line in lines %}- {{ line }}
+{% endfor %}
+Comp-off is not affected by the year end.
+
+See your balances in Leavo: {{ base_url }}/dashboard{% endblock %}

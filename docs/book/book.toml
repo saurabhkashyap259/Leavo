@@ -1,0 +1,7 @@
+[book]
+title = "Leavo"
+authors = ["Leavo contributors"]
+language = "en"
+src = "src"
+
+[output.html]

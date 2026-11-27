@@ -1,0 +1,13 @@
+{% extends "layout.txt.j2" %}
+{% block subject %}{{ requester }} requested {{ days_text }} of {{ leave_type }}{% endblock %}
+{% block body %}{{ requester }} has requested {{ leave_type }}.
+
+Dates: {{ dates }}
+Days: {{ days_text }}
+Reason: {{ reason }}{% if has_attachment %}
+A supporting document is attached to the request.{% endif %}
+
+Approve: {{ approve_url }}
+Reject: {{ reject_url }}
+
+You will be asked to sign in and confirm. The links work once and expire after 72 hours.{% endblock %}

@@ -1,0 +1,5 @@
+{% extends "layout.html.j2" %}
+{% block content %}
+<p>This is a test email from Leavo{% if org_name %} for <strong>{{ org_name }}</strong>{% endif %}.</p>
+<p>If you can read this, email delivery is working.</p>
+{% endblock %}

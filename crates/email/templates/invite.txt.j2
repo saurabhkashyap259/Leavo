@@ -1,0 +1,9 @@
+{% extends "layout.txt.j2" %}
+{% block subject %}{{ invited_by }} invited you to {{ org_name }} on Leavo{% endblock %}
+{% block body %}Hi {{ full_name }},
+
+{{ invited_by }} added you to {{ org_name }}'s leave tracker. Sign in with this email address — we'll send you a one-time code, no password needed:
+
+{{ login_url }}
+
+You can then see your balances, apply for leave and see who's away.{% endblock %}

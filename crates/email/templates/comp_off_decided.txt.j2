@@ -1,0 +1,9 @@
+{% extends "layout.txt.j2" %}
+{% block subject %}Your comp-off request for {{ dates }} was {{ status }}{% endblock %}
+{% block body %}Hi {{ requester }},
+
+{{ decided_by }} {{ status }} your comp-off request for {{ dates }} ({{ days_text }}).{% if status == "approved" %} The credit is in your comp-off balance and each day expires {{ expiry_days }} days after the date you worked.{% endif %}{% if comment %}
+
+Comment: {{ comment }}{% endif %}
+
+See your comp-offs in Leavo: {{ base_url }}/comp-offs{% endblock %}

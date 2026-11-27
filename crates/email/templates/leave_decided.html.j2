@@ -1,0 +1,8 @@
+{% extends "layout.html.j2" %}
+{% block content %}
+<p>Hi {{ requester }},</p>
+<p><strong>{{ decided_by }}</strong> {{ status }} your <strong>{{ leave_type }}</strong> request for <strong>{{ dates }}</strong> ({{ days_text }}).</p>
+{% if comment %}<p style="padding:8px 12px;background:#f6f7f9;border-radius:6px;">{{ comment }}</p>{% endif %}
+{% if status == "approved" %}<p>A calendar invite is attached.</p>{% endif %}
+<p><a href="{{ base_url }}/leave/history">See your leave in Leavo</a></p>
+{% endblock %}

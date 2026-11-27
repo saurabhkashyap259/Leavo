@@ -1,0 +1,9 @@
+{% extends "layout.txt.j2" %}
+{% block subject %}Your request to cancel {{ leave_type }} for {{ dates }} was declined{% endblock %}
+{% block body %}Hi {{ requester }},
+
+{{ decided_by }} declined your request to cancel {{ leave_type }} for {{ dates }} ({{ days_text }}). The leave stays approved.{% if comment %}
+
+Comment: {{ comment }}{% endif %}
+
+See your leave in Leavo: {{ base_url }}/leave/history{% endblock %}

@@ -1,0 +1,7 @@
+{% extends "layout.txt.j2" %}
+{% block subject %}{{ requester }}'s leave request is waiting for you{% endblock %}
+{% block body %}{{ requester }} asked for {{ leave_type }} on {{ dates }} ({{ days_text }}) {{ waiting }} ago, and it has not been decided yet.
+
+Reason: {{ reason }}
+
+Decide in Leavo: {{ inbox_url }}{% endblock %}

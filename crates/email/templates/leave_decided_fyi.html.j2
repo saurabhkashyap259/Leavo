@@ -1,0 +1,5 @@
+{% extends "layout.html.j2" %}
+{% block content %}
+<p><strong>{{ requester }}</strong>'s leave on <strong>{{ dates }}</strong> ({{ days_text }}) is now {{ status }}.</p>
+<p style="color:#6b7280;font-size:13px;">You are receiving this because {{ requester }} added you to the people to keep informed.</p>
+{% endblock %}

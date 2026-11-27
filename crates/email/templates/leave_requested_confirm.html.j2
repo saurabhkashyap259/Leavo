@@ -1,0 +1,10 @@
+{% extends "layout.html.j2" %}
+{% block content %}
+<p>Hi {{ requester }},</p>
+<p>Your <strong>{{ leave_type }}</strong> request for <strong>{{ dates }}</strong> ({{ days_text }}) has been sent for approval.</p>
+<table role="presentation" cellspacing="0" cellpadding="0" style="margin:12px 0;font-size:14px;">
+<tr><td style="padding:2px 12px 2px 0;color:#6b7280;">Status</td><td>Pending</td></tr>
+<tr><td style="padding:2px 12px 2px 0;color:#6b7280;">Reason</td><td>{{ reason }}</td></tr>
+</table>
+<p>You will get an email when it is decided. <a href="{{ base_url }}/leave">Follow it in Leavo</a>.</p>
+{% endblock %}

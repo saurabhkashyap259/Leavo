@@ -1,0 +1,9 @@
+{
+  "name": "leavo-openapi-tools",
+  "private": true,
+  "description": "Isolated toolchain: openapi-typescript still needs TypeScript 5 while the app uses TypeScript 7.",
+  "devDependencies": {
+    "openapi-typescript": "^7.13.0",
+    "typescript": "^5.9.3"
+  }
+}

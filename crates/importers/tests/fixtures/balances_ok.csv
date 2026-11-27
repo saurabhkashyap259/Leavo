@@ -1,0 +1,5 @@
+email,full_name,date_of_joining,leave_type_code,leave_year,available_days,employee_code,department,approver_group
+asha@acme.test,Asha Rao,2025-04-01,CL,2026,8,E-1,Platform,Eng
+asha@acme.test,,,SL,2026,2.5,,,
+ravi@acme.test,,,cl,2026,-1,,,
+new@acme.test,New Person,,CL,2026,12,,,Ops

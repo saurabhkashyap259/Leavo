@@ -1,0 +1,11 @@
+{% extends "layout.txt.j2" %}
+{% block subject %}Your {{ leave_type }} request for {{ dates }} was {{ status }}{% endblock %}
+{% block body %}Hi {{ requester }},
+
+{{ decided_by }} {{ status }} your {{ leave_type }} request for {{ dates }} ({{ days_text }}).{% if comment %}
+
+Comment: {{ comment }}{% endif %}{% if status == "approved" %}
+
+A calendar invite is attached.{% endif %}
+
+See your leave in Leavo: {{ base_url }}/leave/history{% endblock %}

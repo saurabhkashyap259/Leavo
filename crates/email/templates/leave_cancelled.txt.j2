@@ -1,0 +1,11 @@
+{% extends "layout.txt.j2" %}
+{% block subject %}{% if to_requester %}Your {{ leave_type }} for {{ dates }} was cancelled{% else %}{{ requester }}'s {{ leave_type }} for {{ dates }} was cancelled{% endif %}{% endblock %}
+{% block body %}{% if to_requester %}Hi {{ requester }},
+
+Your {{ leave_type }} for {{ dates }} ({{ days_text }}) is cancelled{% else %}{{ requester }}'s {{ leave_type }} for {{ dates }} ({{ days_text }}) is cancelled{% endif %}{% if accepted_by %}; {{ accepted_by }} accepted the cancellation{% endif %}.
+
+{{ returned_text }} went back to the balance.{% if kept_text %} {{ kept_text }} already taken stayed taken.{% endif %}{% if reason %}
+
+Reason: {{ reason }}{% endif %}{% if to_requester %}
+
+See your leave in Leavo: {{ base_url }}/leave/history{% endif %}{% endblock %}

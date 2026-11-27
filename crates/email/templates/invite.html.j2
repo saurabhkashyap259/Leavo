@@ -1,0 +1,7 @@
+{% extends "layout.html.j2" %}
+{% block content %}
+<p>Hi {{ full_name }},</p>
+<p><strong>{{ invited_by }}</strong> added you to {{ org_name }}'s leave tracker. Sign in with this email address — we'll send you a one-time code, no password needed.</p>
+<p><a href="{{ login_url }}" style="display:inline-block;padding:10px 18px;background:#1d4ed8;color:#ffffff;border-radius:6px;text-decoration:none;font-weight:600;">Sign in to Leavo</a></p>
+<p style="color:#6b7280;font-size:13px;">You can then see your balances, apply for leave and see who's away.</p>
+{% endblock %}

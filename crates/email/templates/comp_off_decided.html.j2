@@ -1,0 +1,7 @@
+{% extends "layout.html.j2" %}
+{% block content %}
+<p>Hi {{ requester }},</p>
+<p><strong>{{ decided_by }}</strong> {{ status }} your comp-off request for <strong>{{ dates }}</strong> ({{ days_text }}).{% if status == "approved" %} The credit is in your comp-off balance and each day expires {{ expiry_days }} days after the date you worked.{% endif %}</p>
+{% if comment %}<p style="padding:8px 12px;background:#f6f7f9;border-radius:6px;">{{ comment }}</p>{% endif %}
+<p><a href="{{ base_url }}/comp-offs">See your comp-offs in Leavo</a></p>
+{% endblock %}

@@ -1,0 +1,41 @@
+# Leavo for production (T215, contracts/configuration.md, quickstart B).
+#   1. cp .env.example .env and fill it in (DB_PASSWORD, LEAVO_BASE_URL, LEAVO_SECRET_KEY,
+#      SMTP_URL, EMAIL_FROM).
+#   2. docker compose up -d
+#   3. docker compose logs leavo | grep "Setup token"   → open <LEAVO_BASE_URL>/setup
+# Put a TLS-terminating proxy (e.g. Caddy) in front of port 8080. Back up the pgdata and
+# uploads volumes and your .env together (see the operator docs).
+services:
+  leavo:
+    # Pinned to the major version: `docker compose pull` brings minor and patch releases.
+    image: ${LEAVO_IMAGE:-ghcr.io/leavo-hq/leavo:1}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://leavo:${DB_PASSWORD:?set DB_PASSWORD in .env}@db:5432/leavo
+      STORAGE_LOCAL_PATH: /data/uploads
+    ports:
+      - "${LEAVO_PORT:-8080}:8080"
+    volumes:
+      - uploads:/data/uploads
+
+  db:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: leavo
+      POSTGRES_USER: leavo
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U leavo -d leavo"]
+      interval: 5s
+      retries: 20
+
+volumes:
+  uploads: {}
+  pgdata: {}

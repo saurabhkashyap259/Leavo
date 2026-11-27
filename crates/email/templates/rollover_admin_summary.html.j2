@@ -1,0 +1,10 @@
+{% extends "layout.html.j2" %}
+{% block content %}
+<p>The {{ closing_year }} leave year is closed and {{ year }} quotas are allotted.</p>
+<table role="presentation" cellspacing="0" cellpadding="0" style="margin:12px 0;font-size:14px;">
+<tr><td style="padding:2px 12px 2px 0;color:#6b7280;">Carried forward</td><td>{{ carried }} days across {{ employees }} employee balances</td></tr>
+<tr><td style="padding:2px 12px 2px 0;color:#6b7280;">Lapsed</td><td>{{ lapsed }} days</td></tr>
+</table>
+<p>The attached CSV lists each employee's unused, carried and lapsed days. Employees have been emailed their new balances.</p>
+<p><a href="{{ base_url }}/admin">Open Leavo</a></p>
+{% endblock %}

@@ -1,0 +1,7 @@
+{% extends "layout.html.j2" %}
+{% block content %}
+{% if to_requester %}<p>Hi {{ requester }},</p>{% endif %}
+{% if booked %}<p><strong>{{ holiday_date }}</strong> is no longer a company holiday. It falls inside {% if to_requester %}your{% else %}{{ requester }}'s{% endif %} approved <strong>{{ leave_type }}</strong> for {{ dates }}, so {{ days_text }} is booked and deducted again. The balance can go below zero.</p>
+{% else %}<p><strong>{{ holiday_date }}</strong> is now a company holiday. It falls inside your approved <strong>{{ leave_type }}</strong> for {{ dates }}, so {{ days_text }} went back to your balance.</p>{% endif %}
+<p><a href="{{ base_url }}/leave/history">See it in Leavo</a></p>
+{% endblock %}

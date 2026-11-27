@@ -1,0 +1,7 @@
+{% extends "layout.txt.j2" %}
+{% block subject %}{% if booked %}{% if to_requester %}Holiday removed: {{ days_text }} of your {{ leave_type }} charged again{% else %}Holiday removed: {{ requester }}'s {{ leave_type }} charged {{ days_text }} again{% endif %}{% else %}New holiday: {{ days_text }} of your {{ leave_type }} given back{% endif %}{% endblock %}
+{% block body %}{% if to_requester %}Hi {{ requester }},
+
+{% endif %}{% if booked %}{{ holiday_date }} is no longer a company holiday. It falls inside {% if to_requester %}your{% else %}{{ requester }}'s{% endif %} approved {{ leave_type }} for {{ dates }}, so {{ days_text }} is booked and deducted again. The balance can go below zero.{% else %}{{ holiday_date }} is now a company holiday. It falls inside your approved {{ leave_type }} for {{ dates }}, so {{ days_text }} went back to your balance.{% endif %}
+
+See it in Leavo: {{ base_url }}/leave/history{% endblock %}

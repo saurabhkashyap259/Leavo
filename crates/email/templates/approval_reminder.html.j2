@@ -1,0 +1,6 @@
+{% extends "layout.html.j2" %}
+{% block content %}
+<p><strong>{{ requester }}</strong> asked for <strong>{{ leave_type }}</strong> on <strong>{{ dates }}</strong> ({{ days_text }}) {{ waiting }} ago, and it has not been decided yet.</p>
+<p style="color:#6b7280;">Reason: {{ reason }}</p>
+<p><a href="{{ inbox_url }}" style="display:inline-block;padding:10px 18px;background:#2563eb;color:#ffffff;border-radius:6px;text-decoration:none;font-weight:600;">Open the approvals inbox</a></p>
+{% endblock %}

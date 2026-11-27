@@ -1,0 +1,17 @@
+# Public demo (T220, FR-066): the shipped docker-compose.yml plus this override.
+#   docker compose -f docker-compose.yml -f deploy/demo/compose.demo.yml up -d
+#   docker compose exec leavo leavo-demo-seed --reset
+# Sign-in codes go to the bundled Mailpit, shown to visitors at <host>:8025 (demo data only).
+services:
+  leavo:
+    environment:
+      SMTP_URL: smtp://mail:1025
+      EMAIL_FROM: Leavo demo <demo@demo.leavo.test>
+      LEAVO_UPDATE_CHECK: "false"
+      DEMO_DOMAIN: demo.leavo.test
+  mail:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports: ["8025:8025"]
+    environment:
+      MP_MAX_MESSAGES: "500"
