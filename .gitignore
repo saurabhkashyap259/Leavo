@@ -1,0 +1,34 @@
+# Rust
+/target/
+**/*.rs.bk
+*.prof*
+
+# Web
+web/node_modules/
+web/tools/openapi/node_modules/
+web/dist/
+web/playwright-report/
+web/test-results/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Env & local data
+.env
+.env.*
+!.env.example
+/data/
+
+# Editors / OS
+.DS_Store
+Thumbs.db
+*.swp
+*.tmp
+.idea/
+.vscode/
+*.log
+
+# Internal requirement documents (kept out of the public repo)
+docs/requirements/

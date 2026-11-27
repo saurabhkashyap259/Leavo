@@ -1,0 +1,26 @@
+name: Holiday pack
+description: Propose or correct a country or regional holiday list
+labels: [holiday-pack]
+body:
+  - type: input
+    id: pack
+    attributes:
+      label: Pack
+      description: "COUNTRY or COUNTRY-REGION and year, e.g. IN-KA/2027"
+    validations:
+      required: true
+  - type: textarea
+    id: holidays
+    attributes:
+      label: Holidays (date,name,kind)
+      description: "One per line, kind is mandatory or optional"
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: Official source
+      description: A government gazette or notification URL
+    validations:
+      required: true

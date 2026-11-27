@@ -1,0 +1,30 @@
+# T220 — reset the public demo to fresh sample data every night (FR-066).
+name: demo-reset
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+    if: ${{ vars.DEMO_ENABLED == 'true' }}
+    steps:
+      - name: Pull the latest image and reseed
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEMO_HOST }}
+          username: ${{ secrets.DEMO_USER }}
+          key: ${{ secrets.DEMO_SSH_KEY }}
+          script: |
+            set -e
+            cd "${{ secrets.DEMO_PATH }}"
+            compose="docker compose -f docker-compose.yml -f deploy/demo/compose.demo.yml"
+            $compose pull leavo
+            $compose up -d
+            $compose exec -T leavo leavo-demo-seed --reset
+            curl -fsS -X DELETE http://localhost:8025/api/v1/messages >/dev/null || true

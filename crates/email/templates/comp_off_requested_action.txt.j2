@@ -1,0 +1,12 @@
+{% extends "layout.txt.j2" %}
+{% block subject %}{{ requester }} requested {{ days_text }} of comp-off credit{% endblock %}
+{% block body %}{{ requester }} worked on days off and asks for comp-off credit.
+
+Dates worked: {{ dates }}
+Credit: {{ days_text }}
+Reason: {{ reason }}
+
+Approve: {{ approve_url }}
+Reject: {{ reject_url }}
+
+You will be asked to sign in and confirm. The links work once and expire after 72 hours.{% endblock %}

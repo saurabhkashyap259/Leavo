@@ -1,0 +1,10 @@
+{% extends "layout.txt.j2" %}
+{% block subject %}Year end done: {{ year }} balances are ready{% endblock %}
+{% block body %}The {{ closing_year }} leave year is closed and {{ year }} quotas are allotted.
+
+Carried forward: {{ carried }} days across {{ employees }} employee balances.
+Lapsed: {{ lapsed }} days.
+
+The attached CSV lists each employee's unused, carried and lapsed days. Employees have been emailed their new balances.
+
+Leavo: {{ base_url }}/admin{% endblock %}

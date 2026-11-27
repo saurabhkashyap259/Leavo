@@ -1,0 +1,2 @@
+# Keep functions reviewable; leave-engine rules should stay small and pure.
+too-many-arguments-threshold = 8

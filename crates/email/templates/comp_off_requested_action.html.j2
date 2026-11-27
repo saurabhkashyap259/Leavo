@@ -1,0 +1,14 @@
+{% extends "layout.html.j2" %}
+{% block content %}
+<p><strong>{{ requester }}</strong> worked on days off and asks for comp-off credit.</p>
+<table role="presentation" cellspacing="0" cellpadding="0" style="margin:12px 0;font-size:14px;">
+<tr><td style="padding:2px 12px 2px 0;color:#6b7280;">Dates worked</td><td>{{ dates }}</td></tr>
+<tr><td style="padding:2px 12px 2px 0;color:#6b7280;">Credit</td><td>{{ days_text }}</td></tr>
+<tr><td style="padding:2px 12px 2px 0;color:#6b7280;">Reason</td><td>{{ reason }}</td></tr>
+</table>
+<p>
+<a href="{{ approve_url }}" style="display:inline-block;padding:10px 18px;background:#16a34a;color:#ffffff;border-radius:6px;text-decoration:none;font-weight:600;">Approve</a>
+&nbsp;
+<a href="{{ reject_url }}" style="display:inline-block;padding:10px 18px;background:#ffffff;color:#b91c1c;border:1px solid #b91c1c;border-radius:6px;text-decoration:none;font-weight:600;">Reject</a>
+</p>
+{% endblock %}

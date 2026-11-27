@@ -1,0 +1,6 @@
+{% extends "layout.html.j2" %}
+{% block content %}
+<p>Your Leavo {% if purpose == "signup" %}sign-up{% else %}sign-in{% endif %} code is:</p>
+<p style="font-size:28px;font-weight:600;letter-spacing:6px;margin:16px 0;font-family:ui-monospace,Menlo,monospace;">{{ code }}</p>
+<p style="color:#6b7280;">It works once and expires in 10 minutes. If you didn't ask for it, you can ignore this email.</p>
+{% endblock %}

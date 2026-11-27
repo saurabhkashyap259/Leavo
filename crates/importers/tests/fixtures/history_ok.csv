@@ -1,0 +1,4 @@
+email,leave_type_code,from_date,to_date,days,reason,approved_by_email
+asha@acme.test,CL,2026-11-02,2026-11-03,2,Trip,priya@acme.test
+ravi@acme.test,SL,2026-10-05,2026-10-05,0.5,,
+new@acme.test,CL,2025-12-29,2025-12-30,2,Year end,

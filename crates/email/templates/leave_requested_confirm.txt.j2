@@ -1,0 +1,10 @@
+{% extends "layout.txt.j2" %}
+{% block subject %}Your {{ leave_type }} request for {{ dates }} is pending{% endblock %}
+{% block body %}Hi {{ requester }},
+
+Your {{ leave_type }} request for {{ dates }} ({{ days_text }}) has been sent for approval.
+
+Status: pending
+Reason: {{ reason }}
+
+You will get an email when it is decided. Follow it in Leavo: {{ base_url }}/leave{% endblock %}

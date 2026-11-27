@@ -1,0 +1,19 @@
+# Contributor stack: PostgreSQL + Mailpit (SMTP :1025, web UI http://localhost:8025)
+services:
+  db:
+    image: postgres:latest
+    environment:
+      POSTGRES_DB: leavo
+      POSTGRES_USER: leavo
+      POSTGRES_PASSWORD: leavo
+    ports: ["${LEAVO_DB_PORT:-5432}:5432"]
+    volumes: ["pgdata-dev:/var/lib/postgresql"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U leavo"]
+      interval: 2s
+      retries: 30
+  mail:
+    image: axllent/mailpit:latest
+    ports: ["1025:1025", "8025:8025"]
+volumes:
+  pgdata-dev: {}

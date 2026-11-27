@@ -1,0 +1,7 @@
+{% extends "layout.txt.j2" %}
+{% block subject %}{{ code }} is your Leavo code{% endblock %}
+{% block body %}Your Leavo {% if purpose == "signup" %}sign-up{% else %}sign-in{% endif %} code is:
+
+    {{ code }}
+
+It works once and expires in 10 minutes. If you didn't ask for it, you can ignore this email.{% endblock %}

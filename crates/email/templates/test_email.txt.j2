@@ -1,0 +1,4 @@
+{% extends "layout.txt.j2" %}
+{% block subject %}Leavo test email{% endblock %}
+{% block body %}This is a test email from Leavo{% if org_name %} for {{ org_name }}{% endif %}.
+If you can read this, email delivery is working.{% endblock %}

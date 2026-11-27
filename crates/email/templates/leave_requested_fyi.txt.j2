@@ -1,0 +1,7 @@
+{% extends "layout.txt.j2" %}
+{% block subject %}{{ requester }}: leave on {{ dates }} ({{ status }}){% endblock %}
+{% block body %}{{ requester }} has requested leave on {{ dates }} ({{ days_text }}).
+
+Status: {{ status }}
+
+You are receiving this because {{ requester }} added you to the people to keep informed.{% endblock %}

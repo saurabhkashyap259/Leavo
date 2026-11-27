@@ -1,0 +1,5070 @@
+openapi: 3.1.0
+info:
+  title: Leavo API
+  description: 'Self-hosted leave management. JSON over `/api/v1`, session-cookie auth, `X-Requested-With: leavo` on state-changing requests.'
+  version: 0.1.0
+paths:
+  /api/v1/admin/approver-groups:
+    get:
+      tags:
+      - admin
+      operationId: list
+      responses:
+        '200':
+          description: Groups by name
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApproverGroup'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+    post:
+      tags:
+      - admin
+      operationId: create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupInput'
+        required: true
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApproverGroup'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: 'VALIDATION (details.field: name — empty, too long or taken; member_ids — not approvers/admins)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/admin/approver-groups/{id}:
+    delete:
+      tags:
+      - admin
+      operationId: remove
+      parameters:
+      - name: id
+        in: path
+        description: Group id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: Deleted; its employees have no group (their requests go to every approver)
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: NOT_FOUND
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+    patch:
+      tags:
+      - admin
+      operationId: update
+      parameters:
+      - name: id
+        in: path
+        description: Group id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupInput'
+        required: true
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApproverGroup'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: NOT_FOUND
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: 'VALIDATION (details.field: name, member_ids)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/admin/audit-log:
+    get:
+      tags:
+      - admin
+      operationId: list
+      parameters:
+      - name: actor
+        in: query
+        description: Who acted
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: entity
+        in: query
+        description: Entity id, or entity kind (e.g. `leave_request`)
+        required: false
+        schema:
+          type: string
+      - name: action
+        in: query
+        description: e.g. `leave.approve`; a trailing `.` matches a prefix (`leave.`)
+        required: false
+        schema:
+          type: string
+      - name: from
+        in: query
+        description: YYYY-MM-DD, org time zone, inclusive
+        required: false
+        schema:
+          type: string
+      - name: to
+        in: query
+        description: YYYY-MM-DD, org time zone, inclusive
+        required: false
+        schema:
+          type: string
+      - name: cursor
+        in: query
+        description: From the previous page
+        required: false
+        schema:
+          type: string
+      - name: limit
+        in: query
+        description: 1–200, default 50
+        required: false
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Entries, newest first
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditPage'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: VALIDATION (details.field)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/admin/carry-forward/preview:
+    get:
+      tags:
+      - admin
+      operationId: carry_forward_preview
+      parameters:
+      - name: year
+        in: query
+        description: The leave year being closed; defaults to the current one
+        required: false
+        schema:
+          type: integer
+          format: int32
+      responses:
+        '200':
+          description: 'Per active employee and carry-forward type with a non-zero balance: what year end will write (or wrote, once it has run) — the same numbers either way (FR-039)'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CarryForwardRow'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: 'VALIDATION (details.field: year)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/admin/carry-forward/preview.csv:
+    get:
+      tags:
+      - admin
+      operationId: carry_forward_csv
+      parameters:
+      - name: year
+        in: query
+        description: The leave year being closed; defaults to the current one
+        required: false
+        schema:
+          type: integer
+          format: int32
+      responses:
+        '200':
+          description: '`email,full_name,leave_type,unused,carry,lapse` (contracts/csv-formats.md §7)'
+          content:
+            text/csv: {}
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/admin/comp-off-credits/{id}/revoke:
+    post:
+      tags:
+      - comp-offs
+      operationId: revoke
+      parameters:
+      - name: id
+        in: path
+        description: Credit id (from `GET /comp-offs?user=`)
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RevokeInput'
+        required: true
+      responses:
+        '200':
+          description: 'Revoked: `comp_off_revoked` for the days not yet expired'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditItem'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '403':
+          description: 'FORBIDDEN: admins only'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: NOT_FOUND
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '409':
+          description: 'ALREADY_DECIDED: already revoked'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: 'NOTE_REQUIRED; CREDIT_IN_USE (used or reserved); VALIDATION (details.field: reason)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/admin/dashboard:
+    get:
+      tags:
+      - admin
+      operationId: dashboard
+      responses:
+        '200':
+          description: Org dashboard
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminDashboard'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/admin/holidays:
+    post:
+      tags:
+      - admin
+      operationId: create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HolidayInput'
+        required: true
+      responses:
+        '201':
+          description: Added. A mandatory holiday frees that day in pending and approved leave (FR-035)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HolidayItem'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: 'VALIDATION (details.field: name — empty, too long or the same date and name exists; kind; location)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/admin/holidays/import:
+    post:
+      tags:
+      - admin
+      operationId: import
+      parameters:
+      - name: dry_run
+        in: query
+        description: 'true: report what would change and write nothing'
+        required: false
+        schema:
+          type: boolean
+      requestBody:
+        description: JSON `{ pack }` or `{ copy_from_year, to_year }`, or multipart/form-data with a CSV `file` (contracts/csv-formats.md §6)
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportSource'
+        required: true
+      responses:
+        '200':
+          description: What was (or would be) added; rows already in the calendar are skipped. Added mandatory holidays adjust booked leave (FR-035)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportResult'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: 'IMPORT_HAS_ERRORS (apply with row errors; nothing written); VALIDATION (details.field: file, pack, copy_from_year, to_year)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/admin/holidays/{id}:
+    delete:
+      tags:
+      - admin
+      operationId: remove
+      parameters:
+      - name: id
+        in: path
+        description: Holiday id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: Deleted. A mandatory holiday inside approved leave is charged again, even below zero, and the employee and admins are emailed (FR-035)
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: NOT_FOUND
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+    patch:
+      tags:
+      - admin
+      operationId: update
+      parameters:
+      - name: id
+        in: path
+        description: Holiday id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        description: Any of `date`, `name`, `kind`, `location` (null clears it)
+        content:
+          application/json:
+            schema:
+              type: object
+        required: true
+      responses:
+        '200':
+          description: Updated; booked leave on the old and new date is adjusted (FR-035)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HolidayItem'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: NOT_FOUND
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: 'VALIDATION (details.field: date, name, kind, location)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/admin/import/{kind}:
+    post:
+      tags:
+      - admin
+      operationId: import
+      parameters:
+      - name: kind
+        in: path
+        description: '`csv` (contracts/csv-formats.md §2–3) or `keka` (§4)'
+        required: true
+        schema:
+          type: string
+      - name: dry_run
+        in: query
+        description: 'true: report only, write nothing'
+        required: false
+        schema:
+          type: boolean
+      requestBody:
+        description: '`balances` file (required), `history` file (optional); Keka: `leave_type_map` (JSON object name → code), `leave_year` (default: current)'
+        content:
+          multipart/form-data: {}
+      responses:
+        '200':
+          description: The plan (dry run) or what was applied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportReport'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: Unknown kind
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: 'IMPORT_HAS_ERRORS (apply with any error row; nothing written); VALIDATION (details.field: balances, leave_type_map, leave_year)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/admin/instance:
+    get:
+      tags:
+      - admin
+      operationId: status
+      responses:
+        '200':
+          description: Instance health
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstanceStatus'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/admin/instance/test-email:
+    post:
+      tags:
+      - admin
+      operationId: test_email
+      responses:
+        '202':
+          description: A test email is queued to the signed-in admin; its delivery shows in the email status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestEmailQueued'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/admin/leave-types:
+    get:
+      tags:
+      - admin
+      operationId: list
+      responses:
+        '200':
+          description: Every leave type, including inactive ones
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LeaveType'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+    post:
+      tags:
+      - admin
+      operationId: create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LeaveTypeInput'
+        required: true
+      responses:
+        '201':
+          description: Created. `code`, `name`, `color` and `yearly_quota` are required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaveType'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: VALIDATION (details.field)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/admin/leave-types/{id}:
+    patch:
+      tags:
+      - admin
+      operationId: patch
+      parameters:
+      - name: id
+        in: path
+        description: Leave type id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LeaveTypeInput'
+        required: true
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaveType'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: VALIDATION or QUOTA_APPLY_FROM_REQUIRED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/admin/leave-types/{id}/grants:
+    get:
+      tags:
+      - admin
+      operationId: list_grants
+      parameters:
+      - name: id
+        in: path
+        description: Leave type id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: include_revoked
+        in: query
+        description: Include revoked grants (history)
+        required: false
+        schema:
+          type: boolean
+      responses:
+        '200':
+          description: Grants, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Grant'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+    post:
+      tags:
+      - admin
+      operationId: grant
+      parameters:
+      - name: id
+        in: path
+        description: Restricted leave type id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GrantInput'
+        required: true
+      responses:
+        '200':
+          description: Already granted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Grant'
+        '201':
+          description: Granted; the full yearly quota is allotted for the current leave year (once per year)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Grant'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: Type or user not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: VALIDATION (type is not restricted)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/admin/leave-types/{id}/grants/{user_id}:
+    delete:
+      tags:
+      - admin
+      operationId: revoke
+      parameters:
+      - name: id
+        in: path
+        description: Leave type id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: user_id
+        in: path
+        description: Grantee
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: 'Revoked: remaining available balance lapses; history and pending requests are kept'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: No active grant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/admin/org:
+    get:
+      tags:
+      - admin
+      operationId: get_org
+      responses:
+        '200':
+          description: Organization settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrgSettings'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+    patch:
+      tags:
+      - admin
+      operationId: patch_org
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchOrg'
+        required: true
+      responses:
+        '200':
+          description: Updated. Time zone and weekend changes apply to requests submitted from now on (FR-062)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrgSettings'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '409':
+          description: LEAVE_YEAR_LOCKED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: VALIDATION
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/admin/org/domains:
+    get:
+      tags:
+      - admin
+      operationId: list_domains
+      responses:
+        '200':
+          description: Whitelisted domains
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Domain'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+    post:
+      tags:
+      - admin
+      operationId: add_domain
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddDomain'
+        required: true
+      responses:
+        '201':
+          description: Added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Domain'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '409':
+          description: DOMAIN_TAKEN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: INVALID_DOMAIN or PUBLIC_DOMAIN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/admin/org/domains/{id}:
+    delete:
+      tags:
+      - admin
+      operationId: remove_domain
+      parameters:
+      - name: id
+        in: path
+        description: Domain id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: 'Removed: no new signups from it; existing users keep access'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/admin/org/sign-out-all:
+    post:
+      tags:
+      - admin
+      operationId: sign_out_all
+      responses:
+        '204':
+          description: Every session in the organization ended, including the caller's (FR-063)
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/admin/reports/leaves:
+    get:
+      tags:
+      - admin
+      operationId: leaves
+      parameters:
+      - name: group_by
+        in: query
+        description: '`type` (default), `user` or `month`'
+        required: false
+        schema:
+          type: string
+      - name: year
+        in: query
+        description: Leave year; defaults to the current one
+        required: false
+        schema:
+          type: integer
+          format: int32
+      responses:
+        '200':
+          description: Days taken, one row per group and leave type
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReportRow'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: 'VALIDATION (details.field: group_by, year)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/admin/reports/leaves.csv:
+    get:
+      tags:
+      - admin
+      operationId: leaves_csv
+      parameters:
+      - name: group_by
+        in: query
+        description: '`type` (default), `user` or `month`'
+        required: false
+        schema:
+          type: string
+      - name: year
+        in: query
+        description: Leave year; defaults to the current one
+        required: false
+        schema:
+          type: integer
+          format: int32
+      responses:
+        '200':
+          description: '`group,leave_type,days` (contracts/csv-formats.md §7)'
+          content:
+            text/csv: {}
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/admin/users:
+    get:
+      tags:
+      - admin
+      operationId: list
+      parameters:
+      - name: q
+        in: query
+        description: Name, email or employee code contains
+        required: false
+        schema:
+          type: string
+      - name: status
+        in: query
+        description: invited, active or deactivated
+        required: false
+        schema:
+          type: string
+      - name: role
+        in: query
+        description: employee, approver or admin
+        required: false
+        schema:
+          type: string
+      - name: group
+        in: query
+        description: Approver group the person belongs to
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: cursor
+        in: query
+        description: From the previous page
+        required: false
+        schema:
+          type: string
+      - name: limit
+        in: query
+        description: 1–200, default 50
+        required: false
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: People by name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPage'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: VALIDATION (details.field)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+    post:
+      tags:
+      - admin
+      operationId: invite
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InviteInput'
+        required: true
+      responses:
+        '201':
+          description: 'Invited: status `invited`, this year''s quotas allotted (pro-rated by joining date) and an invite email sent'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: 'DOMAIN_NOT_REGISTERED; VALIDATION (details.field: email — invalid or already a user, full_name, employee_code — taken, department, role, approver_group_id)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/admin/users/import:
+    post:
+      tags:
+      - admin
+      operationId: import
+      parameters:
+      - name: dry_run
+        in: query
+        description: 'true: report only'
+        required: false
+        schema:
+          type: boolean
+      requestBody:
+        description: CSV `file` (contracts/csv-formats.md §1)
+        content:
+          multipart/form-data: {}
+      responses:
+        '200':
+          description: Who is (or would be) invited; existing users are skipped; missing groups are created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InviteImportResult'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: 'IMPORT_HAS_ERRORS (apply with row errors; nothing written); VALIDATION (details.field: file)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/admin/users/{id}:
+    get:
+      tags:
+      - admin
+      operationId: get
+      parameters:
+      - name: id
+        in: path
+        description: User id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: One person
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: NOT_FOUND
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+    patch:
+      tags:
+      - admin
+      operationId: update
+      parameters:
+      - name: id
+        in: path
+        description: User id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        description: 'Any of `full_name`, `employee_code`, `department`, `date_of_joining` (no re-allotment, FR-064), `role`, `approver_group_id` (null: none), `status` (`active` | `deactivated`)'
+        content:
+          application/json:
+            schema:
+              type: object
+        required: true
+      responses:
+        '200':
+          description: Updated. Deactivation ends all the person's sessions at once (FR-006); demotion to employee removes them from the groups they approve
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: NOT_FOUND
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: LAST_ADMIN (FR-014); VALIDATION (details.field)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/admin/users/{id}/adjustments:
+    post:
+      tags:
+      - admin
+      operationId: adjust
+      parameters:
+      - name: id
+        in: path
+        description: User id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdjustmentInput'
+        required: true
+      responses:
+        '201':
+          description: A `manual_adjustment` entry recorded with its author
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LedgerItem'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: NOT_FOUND
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: 'NOTE_REQUIRED; VALIDATION (details.field: delta, leave_year, leave_type_id, note)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/admin/users/{id}/anonymise:
+    post:
+      tags:
+      - admin
+      operationId: anonymise
+      parameters:
+      - name: id
+        in: path
+        description: User id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Name and email replaced everywhere (audit log included), reasons, comments and attachments deleted; dates, days and balance entries kept
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: NOT_FOUND
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '409':
+          description: ALREADY_ANONYMISED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: 'VALIDATION (details.field: status — deactivate the person first)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/admin/users/{id}/balances:
+    get:
+      tags:
+      - admin
+      operationId: balances
+      parameters:
+      - name: id
+        in: path
+        description: User id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: year
+        in: query
+        description: Leave year; defaults to the current one
+        required: false
+        schema:
+          type: integer
+          format: int32
+      responses:
+        '200':
+          description: The person's balance cards and the entries behind them
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserBalances'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: NOT_FOUND
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/admin/users/{id}/export:
+    post:
+      tags:
+      - admin
+      operationId: admin_export
+      parameters:
+      - name: id
+        in: path
+        description: User id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: The person's data, as `/me/export` gives it to them
+          content:
+            application/json: {}
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: NOT_FOUND
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/approvals:
+    get:
+      tags:
+      - approvals
+      operationId: inbox
+      parameters:
+      - name: status
+        in: query
+        description: '`pending` (default)'
+        required: false
+        schema:
+          type: string
+      - name: kind
+        in: query
+        description: '`leave` (default), `cancel` or `comp_off`'
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Requests the viewer may decide, oldest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApprovalItem'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '403':
+          description: 'FORBIDDEN: employees have no inbox'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/approvals/action/{token}:
+    get:
+      tags:
+      - approvals
+      operationId: action_link
+      parameters:
+      - name: token
+        in: path
+        description: Token from an approver email
+        required: true
+        schema:
+          type: string
+      responses:
+        '303':
+          description: To `/approvals?request=…&decision=…&t=…`, or `/approvals?link=used|expired|invalid`; deciding there needs a session
+  /api/v1/approvals/{kind}/{id}/decide:
+    post:
+      tags:
+      - approvals
+      operationId: decide
+      parameters:
+      - name: kind
+        in: path
+        description: '`leave`'
+        required: true
+        schema:
+          type: string
+      - name: id
+        in: path
+        description: Request id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        description: UUID
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecideInput'
+        required: true
+      responses:
+        '200':
+          description: Decided. Approval deducts the days per leave year; rejection releases them
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Decided'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '403':
+          description: SELF_APPROVAL, NOT_ELIGIBLE_APPROVER, or FORBIDDEN for an action_token that is not this approver's valid link for this decision
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: NOT_FOUND
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '409':
+          description: ALREADY_DECIDED with details { status, decided_by, decided_at }; IDEMPOTENCY_MISMATCH
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: COMMENT_REQUIRED; VALIDATION
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/attachments:
+    post:
+      tags:
+      - leaves
+      operationId: upload
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UploadForm'
+        required: true
+      responses:
+        '201':
+          description: Stored; pass `id` as `attachment_id` when creating the request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Uploaded'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '413':
+          description: FILE_TOO_LARGE
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '415':
+          description: FILE_TYPE_NOT_ALLOWED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: 'VALIDATION: no `file` part'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/attachments/{id}/download:
+    get:
+      tags:
+      - leaves
+      operationId: download
+      parameters:
+      - name: id
+        in: path
+        description: Attachment id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: o
+        in: query
+        description: Organization id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: exp
+        in: query
+        description: Expiry (unix seconds)
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: sig
+        in: query
+        description: Signature
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: The file (local storage only; S3 links go straight to the bucket)
+          content:
+            application/octet-stream: {}
+        '403':
+          description: 'FORBIDDEN: expired or invalid link'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: NOT_FOUND
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/attachments/{id}/url:
+    get:
+      tags:
+      - leaves
+      operationId: signed_url
+      parameters:
+      - name: id
+        in: path
+        description: Attachment id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: A download link valid for 5 minutes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignedUrl'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: 'Not found, or not visible: only the owner, the request''s eligible approvers and admins (FR-029)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/auth/code:
+    post:
+      tags:
+      - auth
+      operationId: request_code
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CodeRequest'
+        required: true
+      responses:
+        '202':
+          description: A code was sent if the email may sign in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CodeSent'
+        '403':
+          description: SETUP_TOKEN_INVALID (purpose setup)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: purpose register_org in single-organization mode
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '409':
+          description: DOMAIN_TAKEN (purpose register_org)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: VALIDATION, DOMAIN_NOT_REGISTERED or PUBLIC_DOMAIN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '429':
+          description: RATE_LIMITED or LOCKED (Retry-After header)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/auth/logout:
+    post:
+      tags:
+      - auth
+      operationId: logout
+      parameters:
+      - name: all
+        in: query
+        description: Sign out of every device
+        required: false
+        schema:
+          type: boolean
+      responses:
+        '204':
+          description: Signed out; clears the cookie
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/auth/recovery/{link}:
+    get:
+      tags:
+      - auth
+      operationId: redeem
+      parameters:
+      - name: link
+        in: path
+        description: From `leavo recovery-login`
+        required: true
+        schema:
+          type: string
+      responses:
+        '303':
+          description: 'Valid: session cookie and `/admin`. Otherwise `/login?link=used|expired|invalid`'
+  /api/v1/auth/verify:
+    post:
+      tags:
+      - auth
+      operationId: verify
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyRequest'
+        required: true
+      responses:
+        '200':
+          description: Signed in (sets the leavo_sid cookie), or a ticket for register_org
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyResponse'
+        '404':
+          description: purpose register_org in single-organization mode
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: CODE_INVALID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '429':
+          description: LOCKED after 5 wrong codes (Retry-After header)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/away:
+    get:
+      tags:
+      - me
+      operationId: away
+      parameters:
+      - name: range
+        in: query
+        description: '`today` (default), `week` (Monday–Sunday) or `month`, in the org''s time zone'
+        required: false
+        schema:
+          type: string
+      - name: scope
+        in: query
+        description: '`org` (default) or `team`: the viewer''s approver group, the groups they approve, or their department'
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Approved leave overlapping the range; `leave_type` and `reason` only for eligible approvers and admins (FR-058)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AwayList'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: 'VALIDATION: `details.field` is `range` or `scope`'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/comp-offs:
+    get:
+      tags:
+      - comp-offs
+      operationId: summary
+      parameters:
+      - name: user
+        in: query
+        description: 'Admins only: another employee'
+        required: false
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Comp-off balance, next expiry, credits and requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompOffSummary'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '403':
+          description: 'FORBIDDEN: `user` is for admins'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: 'NOT_FOUND: no such user'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+    post:
+      tags:
+      - comp-offs
+      operationId: create
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        description: UUID; a retry with the same key returns the first response
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompOffInput'
+        required: true
+      responses:
+        '201':
+          description: Pending; the requester's approvers are emailed with action links
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompOffCreated'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '409':
+          description: IDEMPOTENCY_MISMATCH
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: 'COMP_OFF_DATE_INVALID (details.date: not past, not a weekend day or mandatory holiday, or already claimed); TYPE_NOT_AVAILABLE (no active comp-off type); NO_APPROVER_AVAILABLE; VALIDATION (details.field: dates, reason, notify)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/comp-offs/{id}/cancel:
+    post:
+      tags:
+      - comp-offs
+      operationId: cancel
+      parameters:
+      - name: id
+        in: path
+        description: Comp-off request id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Withdrawn; its dates can be claimed again
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompOffCancelled'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '403':
+          description: 'FORBIDDEN: only the requester withdraws'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: NOT_FOUND
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '409':
+          description: ALREADY_DECIDED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/holiday-packs:
+    get:
+      tags:
+      - admin
+      operationId: packs
+      responses:
+        '200':
+          description: Country holiday packs bundled with this release
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PackInfo'
+        '403':
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/holidays:
+    get:
+      tags:
+      - me
+      operationId: list
+      parameters:
+      - name: year
+        in: query
+        description: Leave year; the current (default) or next one, any year for admins
+        required: false
+        schema:
+          type: integer
+          format: int32
+      responses:
+        '200':
+          description: The leave year's holidays by date (FR-033)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HolidayItem'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: 'VALIDATION: `year` is not the current or next leave year (admins: 2000–2200)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/leaves:
+    post:
+      tags:
+      - leaves
+      operationId: create
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        description: UUID; a retry with the same key returns the first response
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LeaveInput'
+        required: true
+      responses:
+        '201':
+          description: Request created as pending; approvers, the employee and notified members are emailed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Created'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '409':
+          description: IDEMPOTENCY_MISMATCH
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: 'The first rule broken (catalogue code, e.g. INSUFFICIENT_BALANCE with details.leave_year), NO_APPROVER_AVAILABLE, or VALIDATION (details.field: Idempotency-Key, notify, attachment_id)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/leaves/preview:
+    post:
+      tags:
+      - leaves
+      operationId: preview
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LeaveInput'
+        required: true
+      responses:
+        '200':
+          description: Working days, excluded dates, per-leave-year charges and every rule broken (FR-016, FR-055)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Preview'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: 'VALIDATION: malformed body'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/leaves/{id}:
+    get:
+      tags:
+      - leaves
+      operationId: get
+      parameters:
+      - name: id
+        in: path
+        description: Request id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Request detail including the decision
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaveDetail'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: Not found, or not visible to this user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/leaves/{id}/cancel:
+    post:
+      tags:
+      - leaves
+      operationId: cancel
+      parameters:
+      - name: id
+        in: path
+        description: Request id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelInput'
+        required: true
+      responses:
+        '200':
+          description: 'Pending: withdrawn and the days released. Approved and not started: cancelled and every day returned. Started: `cancel_requested` until an approver accepts (only days from the request date on are then returned) or declines'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancelResult'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '403':
+          description: 'FORBIDDEN: only the requester cancels'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: NOT_FOUND
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '409':
+          description: 'ALREADY_DECIDED: rejected, cancelled or already waiting for an approver; details { status, decided_by, decided_at }'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: 'VALIDATION (details.field: reason)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/me:
+    get:
+      tags:
+      - me
+      operationId: get_me
+      responses:
+        '200':
+          description: The signed-in user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+    patch:
+      tags:
+      - me
+      operationId: patch_me
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchMe'
+        required: true
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: VALIDATION (details.field); employee codes are unique in the org
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/me/balances:
+    get:
+      tags:
+      - me
+      operationId: balances
+      parameters:
+      - name: year
+        in: query
+        description: Leave year; defaults to the current one
+        required: false
+        schema:
+          type: integer
+          format: int32
+      responses:
+        '200':
+          description: 'A card per leave type available to the user: active all-employee types, restricted types with an active grant, and comp-off. `pending` counts days of pending requests; `available = balance − pending`; a leave year that has not started shows its projected allotment (FR-055)'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Balance'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/me/export:
+    get:
+      tags:
+      - me
+      operationId: my_export
+      responses:
+        '200':
+          description: Your profile, leave and comp-off history and balance entries as a JSON download
+          content:
+            application/json: {}
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/me/leaves:
+    get:
+      tags:
+      - me
+      operationId: leaves
+      parameters:
+      - name: year
+        in: query
+        description: 'Leave year: requests with a day in it'
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: type
+        in: query
+        description: Leave type id
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: status
+        in: query
+        description: pending, approved, rejected, cancelled or cancel_requested
+        required: false
+        schema:
+          type: string
+      - name: cursor
+        in: query
+        description: '`next_cursor` of the previous page'
+        required: false
+        schema:
+          type: string
+      - name: limit
+        in: query
+        description: 1–100, default 25
+        required: false
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: The user's requests, newest first
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryPage'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: 'VALIDATION: `details.field` names the bad parameter'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/me/leaves.csv:
+    get:
+      tags:
+      - me
+      operationId: leaves_csv
+      parameters:
+      - name: year
+        in: query
+        description: Leave year
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: type
+        in: query
+        description: Leave type id
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: status
+        in: query
+        description: Request status
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Every matching request (contracts/csv-formats.md §7); dates in the org's time zone
+          content:
+            text/csv:
+              schema:
+                type: string
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: 'VALIDATION: `details.field` names the bad parameter'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/orgs:
+    post:
+      tags:
+      - setup
+      operationId: register
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterOrg'
+        required: true
+      responses:
+        '201':
+          description: Organization created with default leave types; the founder is its admin and signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisteredOrg'
+        '404':
+          description: Single-organization mode
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '409':
+          description: DOMAIN_TAKEN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: VALIDATION or CODE_INVALID (bad or expired ticket)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/setup/complete:
+    post:
+      tags:
+      - setup
+      operationId: complete
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompleteSetup'
+        required: true
+      responses:
+        '200':
+          description: Organization created; the admin is signed in (sets leavo_sid)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignedIn'
+        '403':
+          description: SETUP_TOKEN_INVALID (also once setup is complete)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: VALIDATION, PUBLIC_DOMAIN, INVALID_DOMAIN or CODE_INVALID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '429':
+          description: LOCKED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/setup/status:
+    get:
+      tags:
+      - setup
+      operationId: status
+      responses:
+        '200':
+          description: Whether the first-run wizard is needed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SetupStatus'
+  /api/v1/setup/test-email:
+    post:
+      tags:
+      - setup
+      operationId: test_email
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestEmailBody'
+        required: true
+      responses:
+        '200':
+          description: 'Sent now (not queued); `ok: false` carries the SMTP error'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestEmailResult'
+        '403':
+          description: SETUP_TOKEN_INVALID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/setup/verify-token:
+    post:
+      tags:
+      - setup
+      operationId: verify_token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenBody'
+        required: true
+      responses:
+        '204':
+          description: Token is valid
+        '403':
+          description: SETUP_TOKEN_INVALID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '429':
+          description: LOCKED after 5 wrong tries (Retry-After header)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/team/calendar:
+    get:
+      tags:
+      - me
+      operationId: team_calendar
+      parameters:
+      - name: month
+        in: query
+        description: '`YYYY-MM`; defaults to the current month in the org''s time zone'
+        required: false
+        schema:
+          type: string
+      - name: scope
+        in: query
+        description: '`org` (default) or `team`, as for `/away`'
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Booked days of approved leave in the month, per day, with the same field rule as `/away`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamCalendar'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: 'VALIDATION: `details.field` is `month` or `scope`'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/users/search:
+    get:
+      tags:
+      - me
+      operationId: search
+      parameters:
+      - name: q
+        in: query
+        description: At least 2 characters of a name or email
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Up to 10 active users of the same organization, by name
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserHit'
+        '401':
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+components:
+  schemas:
+    AddDomain:
+      type: object
+      required:
+      - domain
+      properties:
+        domain:
+          type: string
+      additionalProperties: false
+    AdjustmentInput:
+      type: object
+      required:
+      - leave_type_id
+      - leave_year
+      - delta
+      properties:
+        delta:
+          type: number
+          format: double
+          description: Non-zero, a multiple of 0.5; negative deducts.
+        leave_type_id:
+          type: string
+          format: uuid
+        leave_year:
+          type: integer
+          format: int32
+        note:
+          type:
+          - string
+          - 'null'
+          description: 'Required: why (FR-041).'
+      additionalProperties: false
+    AdminDashboard:
+      type: object
+      required:
+      - away_today
+      - pending
+      - pending_over_48h
+      - upcoming_holidays
+      - next_year_holidays_missing
+      - setup_checklist
+      properties:
+        away_today:
+          type: array
+          items:
+            $ref: '#/components/schemas/AwayToday'
+        next_year_holidays_missing:
+          type: boolean
+          description: |-
+            From two months before the next leave year starts (1 November for a January year), true
+            while next year has no holidays (FR-036).
+        pending:
+          type: integer
+          format: int64
+          description: Leave, comp-off and cancellation requests waiting for a decision.
+        pending_over_48h:
+          type: integer
+          format: int64
+          description: Of those, waiting longer than the reminder threshold (48 h by default).
+        setup_checklist:
+          $ref: '#/components/schemas/SetupChecklist'
+        upcoming_holidays:
+          type: array
+          items:
+            $ref: '#/components/schemas/HolidayItem'
+          description: The next 3, from today.
+    AdminUser:
+      type: object
+      description: A person as admins see them.
+      required:
+      - id
+      - email
+      - full_name
+      - role
+      - status
+      - anonymised
+      properties:
+        anonymised:
+          type: boolean
+        approver_group:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/GroupRef'
+            description: The group whose approvers decide this person's requests.
+        date_of_joining:
+          type:
+          - string
+          - 'null'
+          format: date
+        department:
+          type:
+          - string
+          - 'null'
+        email:
+          type: string
+        employee_code:
+          type:
+          - string
+          - 'null'
+        full_name:
+          type: string
+        id:
+          type: string
+          format: uuid
+        role:
+          type: string
+          description: '`employee`, `approver` or `admin`.'
+        status:
+          type: string
+          description: '`invited`, `active` or `deactivated`.'
+    ApplyFrom:
+      type: string
+      enum:
+      - now
+      - next_year
+    ApprovalItem:
+      type: object
+      required:
+      - id
+      - kind
+      - requester
+      - leave_type
+      - from
+      - to
+      - days
+      - reason
+      - requested_at
+      - version
+      - balance
+      - team_away
+      properties:
+        attachment:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/AttachmentRef'
+        balance:
+          $ref: '#/components/schemas/AvailableBalance'
+        cancel:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/CancelInfo'
+            description: 'Present on `kind=cancel` items: the employee asks to cancel leave that has started.'
+        dates:
+          type:
+          - array
+          - 'null'
+          items:
+            $ref: '#/components/schemas/WorkedDate'
+          description: 'Present on `kind=comp_off` items: the worked dates claimed.'
+        days:
+          type: number
+          format: double
+        end_half:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/DayHalf'
+        from:
+          type: string
+          format: date
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          description: '`leave`, `cancel` (a request to cancel started leave) or `comp_off` (credit for worked days).'
+        leave_type:
+          $ref: '#/components/schemas/TypeRef'
+        reason:
+          type: string
+        requested_at:
+          type: string
+          format: date-time
+        requester:
+          $ref: '#/components/schemas/PersonRef'
+        start_half:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/DayHalf'
+        team_away:
+          type: array
+          items:
+            $ref: '#/components/schemas/TeamAwayItem'
+        to:
+          type: string
+          format: date
+        version:
+          type: integer
+          format: int32
+          description: Send back with the decision (optimistic locking).
+    ApproverGroup:
+      type: object
+      required:
+      - id
+      - name
+      - members
+      - employees
+      properties:
+        employees:
+          type: integer
+          format: int64
+          description: People assigned to the group.
+        id:
+          type: string
+          format: uuid
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/GroupMember'
+          description: Approvers and admins who decide this group's requests.
+        name:
+          type: string
+    AttachmentRef:
+      type: object
+      required:
+      - id
+      - name
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    AuditItem:
+      type: object
+      required:
+      - id
+      - action
+      - entity_kind
+      - before
+      - after
+      - created_at
+      properties:
+        action:
+          type: string
+          description: Dotted verb, e.g. `leave.approve`, `balance.adjust`, `user.update`.
+        actor:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/PersonRef'
+            description: Null for the system (scheduled jobs) and for setup before the admin exists.
+        after:
+          type: object
+        before:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+        entity_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        entity_kind:
+          type: string
+        id:
+          type: string
+          format: uuid
+        ip:
+          type:
+          - string
+          - 'null'
+    AuditPage:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditItem'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+    AvailableBalance:
+      type: object
+      required:
+      - available
+      properties:
+        available:
+          type: number
+          format: double
+          description: Available days of the request's type in the leave year it starts in.
+    AwayItem:
+      type: object
+      required:
+      - user
+      - from
+      - to
+      - days
+      properties:
+        days:
+          type: number
+          format: double
+        from:
+          type: string
+          format: date
+        leave_type:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/TypeRef'
+            description: Only for the person's eligible approvers and admins (FR-058).
+        reason:
+          type:
+          - string
+          - 'null'
+          description: Only for the person's eligible approvers and admins (FR-058).
+        to:
+          type: string
+          format: date
+        user:
+          $ref: '#/components/schemas/PersonRef'
+    AwayList:
+      type: object
+      required:
+      - count_today
+      - items
+      properties:
+        count_today:
+          type: integer
+          format: int64
+          description: People away today (full or half day) within the scope.
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AwayItem'
+          description: Approved leave overlapping the range, sorted by start date.
+    AwayToday:
+      type: object
+      required:
+      - user
+      - from
+      - to
+      - days
+      - leave_type
+      properties:
+        days:
+          type: number
+          format: double
+        from:
+          type: string
+          format: date
+        leave_type:
+          $ref: '#/components/schemas/TypeRef'
+        to:
+          type: string
+          format: date
+        user:
+          $ref: '#/components/schemas/PersonRef'
+    Balance:
+      type: object
+      description: One dashboard card (data-model.md §v_ledger_balances). Days are multiples of 0.5.
+      required:
+      - leave_type
+      - leave_year
+      - allotted
+      - carried
+      - taken
+      - adjusted
+      - pending
+      - available
+      properties:
+        adjusted:
+          type: number
+          format: double
+        allotted:
+          type: number
+          format: double
+        available:
+          type: number
+          format: double
+        carried:
+          type: number
+          format: double
+        leave_type:
+          $ref: '#/components/schemas/BalanceType'
+        leave_year:
+          type: integer
+          format: int32
+          description: The leave year these figures belong to (comp-off spans years).
+        next_expiry:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/NextExpiry'
+            description: 'Comp-off only: the soonest date spendable days expire (FR-032).'
+        pending:
+          type: number
+          format: double
+        taken:
+          type: number
+          format: double
+    BalanceType:
+      type: object
+      required:
+      - id
+      - code
+      - name
+      - color
+      - is_comp_off
+      properties:
+        code:
+          type: string
+        color:
+          type: string
+        id:
+          type: string
+          format: uuid
+        is_comp_off:
+          type: boolean
+        name:
+          type: string
+    CalendarDay:
+      type: object
+      required:
+      - date
+      - people
+      properties:
+        date:
+          type: string
+          format: date
+        people:
+          type: array
+          items:
+            $ref: '#/components/schemas/CalendarPerson'
+    CalendarPerson:
+      type: object
+      required:
+      - user
+      properties:
+        half:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/DayHalf'
+            description: '`null` for the full day.'
+        leave_type:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/TypeRef'
+        reason:
+          type:
+          - string
+          - 'null'
+        user:
+          $ref: '#/components/schemas/PersonRef'
+    CancelInfo:
+      type: object
+      description: A request to cancel leave that has already started (FR-020).
+      required:
+      - requested_at
+      - days_returned
+      properties:
+        days_returned:
+          type: number
+          format: double
+          description: 'Days that go back to the balance if accepted: those dated on or after the request date.'
+        reason:
+          type:
+          - string
+          - 'null'
+        requested_at:
+          type: string
+          format: date-time
+    CancelInput:
+      type: object
+      properties:
+        reason:
+          type:
+          - string
+          - 'null'
+          description: Optional, up to 500 characters; shown to approvers.
+      additionalProperties: false
+    CancelResult:
+      type: object
+      required:
+      - status
+      properties:
+        status:
+          type: string
+          description: '`cancelled`, or `cancel_requested` when the leave has started and an approver must accept.'
+    CarryForwardRow:
+      type: object
+      description: One employee's carry forward for a carry-forward leave type (FR-039).
+      required:
+      - user
+      - leave_type
+      - unused
+      - carry
+      - lapse
+      properties:
+        carry:
+          type: number
+          format: double
+          description: 'Carried into the next year (negative: a deficit carried as a deduction).'
+        lapse:
+          type: number
+          format: double
+          description: Positive days lost.
+        leave_type:
+          $ref: '#/components/schemas/TypeRef'
+        unused:
+          type: number
+          format: double
+          description: Balance of the closing leave year before year end (negative for a deficit).
+        user:
+          $ref: '#/components/schemas/CarryForwardUser'
+    CarryForwardUser:
+      type: object
+      required:
+      - id
+      - full_name
+      - email
+      properties:
+        email:
+          type: string
+        full_name:
+          type: string
+        id:
+          type: string
+          format: uuid
+    CodePurpose:
+      type: string
+      enum:
+      - login
+      - signup
+      - register_org
+      - setup
+    CodeRequest:
+      type: object
+      required:
+      - email
+      - purpose
+      properties:
+        date_of_joining:
+          type:
+          - string
+          - 'null'
+          format: date
+          description: Optional for signup; used to pro-rate quotas (FR-013, FR-064).
+        email:
+          type: string
+        full_name:
+          type:
+          - string
+          - 'null'
+          description: Required for signup.
+        purpose:
+          $ref: '#/components/schemas/CodePurpose'
+        setup_token:
+          type:
+          - string
+          - 'null'
+          description: Required for purpose `setup`.
+    CodeSent:
+      type: object
+      required:
+      - status
+      properties:
+        status:
+          type: string
+          description: Always `"sent"` — the response never reveals whether an account exists (FR-003).
+    CompOffCancelled:
+      type: object
+      required:
+      - status
+      properties:
+        status:
+          type: string
+    CompOffCreated:
+      type: object
+      required:
+      - id
+      - status
+      - days
+      properties:
+        days:
+          type: number
+          format: double
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+    CompOffInput:
+      type: object
+      required:
+      - dates
+      - reason
+      properties:
+        dates:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkedDateInput'
+          description: 1–31 past weekend days or mandatory holidays, each once.
+        notify:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotifyInput'
+        reason:
+          type: string
+      additionalProperties: false
+    CompOffRequestItem:
+      type: object
+      required:
+      - id
+      - status
+      - reason
+      - dates
+      - days
+      - requested_at
+      - version
+      properties:
+        dates:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkedDate'
+        days:
+          type: number
+          format: double
+        decided_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        decided_by:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/PersonRef'
+        decision_comment:
+          type:
+          - string
+          - 'null'
+        id:
+          type: string
+          format: uuid
+        reason:
+          type: string
+        requested_at:
+          type: string
+          format: date-time
+        status:
+          type: string
+          description: '`pending`, `approved`, `rejected` or `cancelled`.'
+        version:
+          type: integer
+          format: int32
+    CompOffSummary:
+      type: object
+      required:
+      - available
+      - credits
+      - requests
+      properties:
+        available:
+          type: number
+          format: double
+          description: Comp-off days that can be spent now (one pool across leave years, FR-032).
+        credits:
+          type: array
+          items:
+            $ref: '#/components/schemas/CreditItem'
+          description: Soonest expiry first.
+        next_expiry:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/NextExpiry'
+        requests:
+          type: array
+          items:
+            $ref: '#/components/schemas/CompOffRequestItem'
+          description: Newest first.
+    CompleteSetup:
+      type: object
+      required:
+      - setup_token
+      - org
+      - admin
+      properties:
+        admin:
+          $ref: '#/components/schemas/SetupAdmin'
+        extra_domains:
+          type: array
+          items:
+            type: string
+          description: Whitelisted besides the admin's own domain.
+        holiday_pack:
+          type:
+          - string
+          - 'null'
+          description: e.g. `IN/2026`; see `/setup/status`.
+        org:
+          $ref: '#/components/schemas/SetupOrg'
+        seed_leave_types:
+          type: boolean
+        setup_token:
+          type: string
+      additionalProperties: false
+    Created:
+      type: object
+      required:
+      - id
+      - status
+      - days
+      - excluded
+      - by_leave_year
+      properties:
+        by_leave_year:
+          type: array
+          items:
+            $ref: '#/components/schemas/YearCharge'
+        days:
+          type: number
+          format: double
+        excluded:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExcludedDate'
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          description: Always `pending`.
+    CreditItem:
+      type: object
+      required:
+      - id
+      - worked_date
+      - days
+      - days_used
+      - days_reserved
+      - days_expired
+      - status
+      - expires_on
+      - used_on
+      properties:
+        approved_by:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/PersonRef'
+        days:
+          type: number
+          format: double
+        days_expired:
+          type: number
+          format: double
+        days_reserved:
+          type: number
+          format: double
+          description: Held by pending comp-off leave; never expires while held (FR-060).
+        days_used:
+          type: number
+          format: double
+        expires_on:
+          type: string
+          format: date
+          description: The credit expires at the start of this date.
+        id:
+          type: string
+          format: uuid
+        revoke_reason:
+          type:
+          - string
+          - 'null'
+        status:
+          type: string
+          description: '`active`, `used`, `expired` or `revoked`.'
+        used_on:
+          type: array
+          items:
+            $ref: '#/components/schemas/UsedOn'
+        worked_date:
+          type: string
+          format: date
+    DayHalf:
+      type: string
+      enum:
+      - first
+      - second
+    DecideInput:
+      type: object
+      required:
+      - decision
+      - version
+      properties:
+        action_token:
+          type:
+          - string
+          - 'null'
+          description: The token from an email link, when the decision started there.
+        comment:
+          type:
+          - string
+          - 'null'
+          description: Required to reject.
+        decision:
+          $ref: '#/components/schemas/Decision'
+        version:
+          type: integer
+          format: int32
+          description: The `version` from the inbox or request detail.
+      additionalProperties: false
+    Decided:
+      type: object
+      required:
+      - status
+      - decided_by
+      - decided_at
+      properties:
+        decided_at:
+          type: string
+          format: date-time
+        decided_by:
+          $ref: '#/components/schemas/PersonRef'
+        status:
+          type: string
+          description: '`approved` or `rejected`.'
+    Decision:
+      type: string
+      enum:
+      - approve
+      - reject
+    Domain:
+      type: object
+      required:
+      - id
+      - domain
+      properties:
+        domain:
+          type: string
+        id:
+          type: string
+          format: uuid
+    EmailStatus:
+      type: object
+      required:
+      - sent_24h
+      - failed_24h
+      properties:
+        failed_24h:
+          type: integer
+          format: int64
+          description: Given up after every retry in the last 24 hours.
+        last_error:
+          type:
+          - string
+          - 'null'
+        last_error_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        sent_24h:
+          type: integer
+          format: int64
+          description: Delivered in the last 24 hours.
+    ErrorBody:
+      type: object
+      description: Error envelope used by every non-2xx response (data-model.md §Error code catalogue).
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+    ErrorDetail:
+      type: object
+      required:
+      - code
+      - message
+      properties:
+        code:
+          type: string
+          description: A code from the catalogue, e.g. `INSUFFICIENT_BALANCE`.
+        details: {}
+        message:
+          type: string
+    ExcludedDate:
+      type: object
+      required:
+      - date
+      - reason
+      properties:
+        date:
+          type: string
+          format: date
+        name:
+          type:
+          - string
+          - 'null'
+        reason:
+          type: string
+          description: '`weekend` or `holiday`.'
+    Grant:
+      type: object
+      required:
+      - id
+      - user_id
+      - email
+      - full_name
+      - granted_at
+      properties:
+        email:
+          type: string
+        full_name:
+          type: string
+        granted_at:
+          type: string
+          format: date-time
+        granted_by:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        id:
+          type: string
+          format: uuid
+        revoked_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        revoked_by:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+    GrantInput:
+      type: object
+      properties:
+        email:
+          type:
+          - string
+          - 'null'
+          description: Alternative to `user_id`.
+        user_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+      additionalProperties: false
+    GroupInput:
+      type: object
+      properties:
+        member_ids:
+          type:
+          - array
+          - 'null'
+          items:
+            type: string
+            format: uuid
+          description: Approvers or admins (active or invited); replaces the members.
+        name:
+          type:
+          - string
+          - 'null'
+          description: 1–80 characters, unique in the organization.
+      additionalProperties: false
+    GroupMember:
+      type: object
+      required:
+      - id
+      - full_name
+      - email
+      - role
+      properties:
+        email:
+          type: string
+        full_name:
+          type: string
+        id:
+          type: string
+          format: uuid
+        role:
+          type: string
+    GroupRef:
+      type: object
+      required:
+      - id
+      - name
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    HistoryItem:
+      type: object
+      description: One row of the leave history (FR-028). The CSV export carries the same fields.
+      required:
+      - id
+      - kind
+      - leave_type
+      - from
+      - to
+      - days
+      - status
+      - requested_at
+      - reason
+      - notify
+      properties:
+        attachment:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/AttachmentRef'
+        days:
+          type: number
+          format: double
+        decided_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        decided_by:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/PersonRef'
+        decision_comment:
+          type:
+          - string
+          - 'null'
+        end_half:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/DayHalf'
+        from:
+          type: string
+          format: date
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          description: '`leave` (comp-off requests join with US7).'
+        leave_type:
+          $ref: '#/components/schemas/TypeRef'
+        notify:
+          type: array
+          items:
+            type: string
+          description: Members by name, outside people by email.
+        reason:
+          type: string
+        requested_at:
+          type: string
+          format: date-time
+        start_half:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/DayHalf'
+        status:
+          type: string
+        to:
+          type: string
+          format: date
+    HistoryPage:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/HistoryItem'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          description: Pass as `cursor` for the next page; `null` on the last page.
+    HolidayInput:
+      type: object
+      required:
+      - date
+      - name
+      properties:
+        date:
+          type: string
+          format: date
+        kind:
+          type:
+          - string
+          - 'null'
+          description: '`mandatory` (default) or `optional`.'
+        location:
+          type:
+          - string
+          - 'null'
+        name:
+          type: string
+          description: 1–120 characters.
+      additionalProperties: false
+    HolidayItem:
+      type: object
+      description: One holiday of the organization's calendar.
+      required:
+      - id
+      - date
+      - name
+      - kind
+      properties:
+        date:
+          type: string
+          format: date
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          description: '`mandatory` or `optional`.'
+        location:
+          type:
+          - string
+          - 'null'
+        name:
+          type: string
+    ImportBalance:
+      type: object
+      required:
+      - row
+      - email
+      - leave_type_code
+      - leave_year
+      - available_days
+      properties:
+        available_days:
+          type: number
+          format: double
+        email:
+          type: string
+        leave_type_code:
+          type: string
+        leave_year:
+          type: integer
+          format: int32
+        row:
+          type: integer
+          minimum: 0
+    ImportError:
+      type: object
+      required:
+      - row
+      - code
+      - message
+      properties:
+        code:
+          type: string
+          description: '`MISSING_COLUMN`, `MISSING_VALUE`, `INVALID_DATE`, `INVALID_KIND` or `DUPLICATE_ROW`.'
+        message:
+          type: string
+        row:
+          type: integer
+          description: 1-based, counting the header line.
+          minimum: 0
+    ImportHistory:
+      type: object
+      required:
+      - row
+      - email
+      - leave_type_code
+      - from
+      - to
+      - days
+      properties:
+        days:
+          type: number
+          format: double
+        email:
+          type: string
+        from:
+          type: string
+          format: date
+        leave_type_code:
+          type: string
+        row:
+          type: integer
+          minimum: 0
+        to:
+          type: string
+          format: date
+    ImportIssue:
+      type: object
+      required:
+      - row
+      - code
+      - message
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        row:
+          type: integer
+          minimum: 0
+    ImportReport:
+      type: object
+      required:
+      - dry_run
+      - users_to_create
+      - groups_to_create
+      - balances_to_set
+      - history_rows
+      - errors
+      - warnings
+      properties:
+        balances_to_set:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportBalance'
+        dry_run:
+          type: boolean
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportRowIssue'
+          description: |-
+            `UNKNOWN_DOMAIN`, `UNKNOWN_LEAVE_TYPE`, `UNKNOWN_USER`, `INVALID_DATE`, `INVALID_DAYS`,
+            `DUPLICATE_ROW`, `MISSING_COLUMN`, `MISSING_VALUE`, `OVERLAP`. Any error blocks the apply.
+        groups_to_create:
+          type: array
+          items:
+            type: string
+        history_rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportHistory'
+        keka_leave_types:
+          type:
+          - array
+          - 'null'
+          items:
+            $ref: '#/components/schemas/KekaType'
+          description: 'Keka only: each leave type name found and the code it maps to.'
+        skipped_history:
+          type:
+          - integer
+          - 'null'
+          description: 'Keka only: history rows not approved in Keka, left out.'
+          minimum: 0
+        users_to_create:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportUser'
+        warnings:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportRowIssue'
+          description: |-
+            `USER_EXISTS`, `GROUP_WILL_BE_CREATED`, `BALANCE_REPLACES_EARLIER_IMPORT`,
+            `HISTORY_OUTSIDE_LEAVE_YEAR`.
+    ImportResult:
+      type: object
+      required:
+      - dry_run
+      - added
+      - skipped
+      - errors
+      properties:
+        added:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportedHoliday'
+        dry_run:
+          type: boolean
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportError'
+        skipped:
+          type: array
+          items:
+            $ref: '#/components/schemas/SkippedHoliday'
+    ImportRowIssue:
+      type: object
+      required:
+      - file
+      - row
+      - code
+      - message
+      properties:
+        code:
+          type: string
+        file:
+          type: string
+          description: '`balances` or `history`.'
+        message:
+          type: string
+        row:
+          type: integer
+          description: 1-based, counting the header line.
+          minimum: 0
+    ImportSource:
+      type: object
+      description: 'JSON body of an import: a bundled pack, or a copy of another year''s list.'
+      properties:
+        copy_from_year:
+          type:
+          - integer
+          - 'null'
+          format: int32
+        pack:
+          type:
+          - string
+          - 'null'
+          description: e.g. `IN/2027` (see `/holiday-packs`).
+        to_year:
+          type:
+          - integer
+          - 'null'
+          format: int32
+      additionalProperties: false
+    ImportUser:
+      type: object
+      required:
+      - email
+      - full_name
+      properties:
+        approver_group:
+          type:
+          - string
+          - 'null'
+        email:
+          type: string
+        full_name:
+          type: string
+    ImportedHoliday:
+      type: object
+      required:
+      - date
+      - name
+      - kind
+      properties:
+        date:
+          type: string
+          format: date
+        kind:
+          type: string
+        location:
+          type:
+          - string
+          - 'null'
+        name:
+          type: string
+    InstanceStatus:
+      type: object
+      required:
+      - version
+      - mode
+      - update_check
+      - email
+      - jobs
+      properties:
+        email:
+          $ref: '#/components/schemas/EmailStatus'
+        jobs:
+          $ref: '#/components/schemas/JobStatus'
+        migrations:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/MigrationStatus'
+            description: Single mode only.
+        mode:
+          type: string
+          description: '`single` or `multi`.'
+        storage:
+          type:
+          - string
+          - 'null'
+          description: 'Single mode only: `local`, `s3` (or `memory` in tests).'
+        update_check:
+          $ref: '#/components/schemas/UpdateCheckStatus'
+        version:
+          type: string
+    InviteImportResult:
+      type: object
+      required:
+      - dry_run
+      - to_create
+      - skipped
+      - warnings
+      - errors
+      properties:
+        dry_run:
+          type: boolean
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportIssue'
+          description: |-
+            `MISSING_COLUMN`, `MISSING_VALUE`, `INVALID_EMAIL`, `UNKNOWN_DOMAIN`, `INVALID_DATE`,
+            `INVALID_ROLE`, `DUPLICATE_ROW`, `EMPLOYEE_CODE_TAKEN`.
+        skipped:
+          type: array
+          items:
+            $ref: '#/components/schemas/SkippedInvite'
+        to_create:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvitePreview'
+        warnings:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportIssue'
+          description: '`GROUP_WILL_BE_CREATED`.'
+    InviteInput:
+      type: object
+      required:
+      - email
+      - full_name
+      properties:
+        approver_group_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        date_of_joining:
+          type:
+          - string
+          - 'null'
+          format: date
+        department:
+          type:
+          - string
+          - 'null'
+        email:
+          type: string
+        employee_code:
+          type:
+          - string
+          - 'null'
+        full_name:
+          type: string
+        role:
+          type:
+          - string
+          - 'null'
+          description: '`employee` (default), `approver` or `admin`.'
+      additionalProperties: false
+    InvitePreview:
+      type: object
+      required:
+      - row
+      - email
+      - full_name
+      - role
+      properties:
+        approver_group:
+          type:
+          - string
+          - 'null'
+        email:
+          type: string
+        full_name:
+          type: string
+        role:
+          type: string
+        row:
+          type: integer
+          minimum: 0
+    JobStatus:
+      type: object
+      required:
+      - queued
+      - dead
+      properties:
+        dead:
+          type: integer
+          format: int64
+          description: Failed for good.
+        oldest_queued_seconds:
+          type:
+          - integer
+          - 'null'
+          format: int64
+        queued:
+          type: integer
+          format: int64
+          description: Due and waiting to run.
+    KekaType:
+      type: object
+      required:
+      - name
+      properties:
+        code:
+          type:
+          - string
+          - 'null'
+          description: The Leavo code it maps to (suggested from matching names, or from `leave_type_map`).
+        name:
+          type: string
+          description: The leave type name in the Keka files.
+    LeaveDetail:
+      type: object
+      description: Full request detail, visible to the requester, its eligible approvers and admins.
+      required:
+      - id
+      - kind
+      - user
+      - leave_type
+      - from
+      - to
+      - days
+      - status
+      - reason
+      - requested_at
+      - notify
+      - version
+      properties:
+        attachment:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/AttachmentRef'
+        days:
+          type: number
+          format: double
+        decided_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        decided_by:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/PersonRef'
+        decision_comment:
+          type:
+          - string
+          - 'null'
+        end_half:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/DayHalf'
+        from:
+          type: string
+          format: date
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+        leave_type:
+          $ref: '#/components/schemas/TypeRef'
+        notify:
+          type: array
+          items:
+            type: string
+          description: Names of notified colleagues and external addresses.
+        reason:
+          type: string
+        requested_at:
+          type: string
+          format: date-time
+        start_half:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/DayHalf'
+        status:
+          type: string
+          description: pending | approved | rejected | cancelled | cancel_requested
+        to:
+          type: string
+          format: date
+        user:
+          $ref: '#/components/schemas/PersonRef'
+        version:
+          type: integer
+          format: int32
+          description: Optimistic-lock version for decisions.
+    LeaveInput:
+      type: object
+      description: Body of `POST /leaves` and `POST /leaves/preview`.
+      required:
+      - leave_type_id
+      - from_date
+      - to_date
+      properties:
+        attachment_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        end_half:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/DayHalf'
+        from_date:
+          type: string
+          format: date
+        leave_type_id:
+          type: string
+          format: uuid
+        notify:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotifyInput'
+          description: At most 20.
+        reason:
+          type: string
+          description: 1–500 characters (optional while previewing).
+        start_half:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/DayHalf'
+        to_date:
+          type: string
+          format: date
+      additionalProperties: false
+    LeaveType:
+      type: object
+      required:
+      - id
+      - code
+      - name
+      - color
+      - is_comp_off
+      - receives_carry_forward
+      - allow_half_day
+      - allow_negative
+      - negative_limit
+      - min_notice_days
+      - max_backdate_days
+      - availability
+      - active
+      - sort_order
+      - granted_count
+      properties:
+        active:
+          type: boolean
+        allow_half_day:
+          type: boolean
+        allow_negative:
+          type: boolean
+        attachment_required_above_days:
+          type:
+          - number
+          - 'null'
+          format: double
+        availability:
+          type: string
+          description: '`all` or `restricted`'
+        code:
+          type: string
+        color:
+          type: string
+        granted_count:
+          type: integer
+          format: int64
+        id:
+          type: string
+          format: uuid
+        is_comp_off:
+          type: boolean
+        max_backdate_days:
+          type: integer
+          format: int32
+        max_days_per_request:
+          type:
+          - number
+          - 'null'
+          format: double
+        min_notice_days:
+          type: integer
+          format: int32
+        name:
+          type: string
+        negative_limit:
+          type: number
+          format: double
+        pending_yearly_quota:
+          type:
+          - number
+          - 'null'
+          format: double
+          description: Quota that takes effect at the next leave year (FR-056).
+        receives_carry_forward:
+          type: boolean
+        sort_order:
+          type: integer
+          format: int32
+        yearly_quota:
+          type:
+          - number
+          - 'null'
+          format: double
+          description: '`null` for the comp-off type (earned, not allotted).'
+    LeaveTypeInput:
+      type: object
+      properties:
+        active:
+          type:
+          - boolean
+          - 'null'
+        allow_half_day:
+          type:
+          - boolean
+          - 'null'
+        allow_negative:
+          type:
+          - boolean
+          - 'null'
+        apply_from:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/ApplyFrom'
+            description: 'Required when `yearly_quota` changes: `now` or `next_year` (FR-056).'
+        attachment_required_above_days:
+          type:
+          - number
+          - 'null'
+          format: double
+        availability:
+          type:
+          - string
+          - 'null'
+        code:
+          type:
+          - string
+          - 'null'
+        color:
+          type:
+          - string
+          - 'null'
+        max_backdate_days:
+          type:
+          - integer
+          - 'null'
+          format: int64
+        max_days_per_request:
+          type:
+          - number
+          - 'null'
+          format: double
+        min_notice_days:
+          type:
+          - integer
+          - 'null'
+          format: int64
+        name:
+          type:
+          - string
+          - 'null'
+        negative_limit:
+          type:
+          - number
+          - 'null'
+          format: double
+        receives_carry_forward:
+          type:
+          - boolean
+          - 'null'
+        sort_order:
+          type:
+          - integer
+          - 'null'
+          format: int32
+        yearly_quota:
+          type:
+          - number
+          - 'null'
+          format: double
+      additionalProperties: false
+    LedgerItem:
+      type: object
+      description: One balance entry (FR-040).
+      required:
+      - id
+      - leave_type
+      - leave_year
+      - delta
+      - reason
+      - created_at
+      properties:
+        created_at:
+          type: string
+          format: date-time
+        created_by:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/PersonRef'
+        delta:
+          type: number
+          format: double
+        id:
+          type: string
+          format: uuid
+        leave_type:
+          $ref: '#/components/schemas/LedgerType'
+        leave_year:
+          type: integer
+          format: int32
+        note:
+          type:
+          - string
+          - 'null'
+        reason:
+          type: string
+          description: |-
+            `allotment`, `prorate`, `quota_change`, `carry_forward`, `negative_carry`, `lapse`,
+            `leave_taken`, `leave_reversed`, `comp_off_credit`, `comp_off_expired`,
+            `comp_off_revoked`, `manual_adjustment` or `import`.
+        ref_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        ref_kind:
+          type:
+          - string
+          - 'null'
+    LedgerType:
+      type: object
+      required:
+      - id
+      - code
+      - name
+      properties:
+        code:
+          type: string
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    Me:
+      type: object
+      required:
+      - id
+      - email
+      - full_name
+      - role
+      - org
+      - last_notify
+      properties:
+        date_of_joining:
+          type:
+          - string
+          - 'null'
+          format: date
+        department:
+          type:
+          - string
+          - 'null'
+        email:
+          type: string
+        employee_code:
+          type:
+          - string
+          - 'null'
+        full_name:
+          type: string
+        id:
+          type: string
+          format: uuid
+        last_notify:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotifyMember'
+          description: Notified members of the user's last request (suggestions for the next one).
+        org:
+          $ref: '#/components/schemas/OrgSummary'
+        role:
+          type: string
+    MigrationStatus:
+      type: object
+      required:
+      - applied
+      - pending
+      properties:
+        applied:
+          type: integer
+          minimum: 0
+        pending:
+          type: integer
+          minimum: 0
+    NextExpiry:
+      type: object
+      required:
+      - date
+      - days
+      properties:
+        date:
+          type: string
+          format: date
+        days:
+          type: number
+          format: double
+          description: Spendable days that expire on that date.
+    NotifyInput:
+      type: object
+      description: 'A notified member: a colleague by `user_id` or anyone by `email` (FR-059).'
+      properties:
+        email:
+          type:
+          - string
+          - 'null'
+        user_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+      additionalProperties: false
+    NotifyMember:
+      type: object
+      description: A member notified on the user's last request, offered again on the next one.
+      required:
+      - email
+      properties:
+        email:
+          type: string
+        user_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+    OrgSettings:
+      type: object
+      required:
+      - id
+      - name
+      - timezone
+      - weekend
+      - leave_year_start_month
+      - carry_forward_cap
+      - comp_off_expiry_days
+      properties:
+        carry_forward_cap:
+          type: number
+          format: double
+          description: Days of casual leave carried into the next leave year at most.
+        comp_off_expiry_days:
+          type: integer
+          format: int32
+        id:
+          type: string
+          format: uuid
+        leave_year_start_month:
+          type: integer
+          format: int32
+        name:
+          type: string
+        timezone:
+          type: string
+        weekend:
+          type: array
+          items:
+            type: string
+    OrgSummary:
+      type: object
+      required:
+      - id
+      - name
+      - timezone
+      - weekend
+      - leave_year_start_month
+      properties:
+        id:
+          type: string
+          format: uuid
+        leave_year_start_month:
+          type: integer
+          format: int32
+        name:
+          type: string
+        timezone:
+          type: string
+        weekend:
+          type: array
+          items:
+            type: string
+    PackInfo:
+      type: object
+      required:
+      - id
+      - name
+      - count
+      properties:
+        count:
+          type: integer
+          minimum: 0
+        id:
+          type: string
+          description: e.g. `IN/2027`
+        name:
+          type: string
+    PatchMe:
+      type: object
+      description: 'Date of joining is not editable here: it is set at signup and afterwards only by admins (FR-064).'
+      properties:
+        department:
+          type:
+          - string
+          - 'null'
+          description: Empty string clears it.
+        employee_code:
+          type:
+          - string
+          - 'null'
+          description: Empty string clears it.
+        full_name:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
+    PatchOrg:
+      type: object
+      properties:
+        carry_forward_cap:
+          type:
+          - number
+          - 'null'
+          format: double
+        comp_off_expiry_days:
+          type:
+          - integer
+          - 'null'
+          format: int64
+        leave_year_start_month:
+          type:
+          - integer
+          - 'null'
+          format: int64
+          description: Locked once leave data exists (`409 LEAVE_YEAR_LOCKED`).
+        name:
+          type:
+          - string
+          - 'null'
+        timezone:
+          type:
+          - string
+          - 'null'
+        weekend:
+          type:
+          - array
+          - 'null'
+          items:
+            type: string
+      additionalProperties: false
+    PersonRef:
+      type: object
+      required:
+      - id
+      - full_name
+      properties:
+        full_name:
+          type: string
+        id:
+          type: string
+          format: uuid
+    Preview:
+      type: object
+      required:
+      - days
+      - excluded
+      - by_leave_year
+      - errors
+      properties:
+        by_leave_year:
+          type: array
+          items:
+            $ref: '#/components/schemas/YearCharge'
+        days:
+          type: number
+          format: double
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/PreviewError'
+          description: Every rule the request breaks, in catalogue codes; empty when it can be submitted.
+        excluded:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExcludedDate'
+    PreviewError:
+      type: object
+      required:
+      - code
+      - message
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+    RegisterOrg:
+      type: object
+      required:
+      - ticket
+      - name
+      - timezone
+      - leave_year_start_month
+      - full_name
+      properties:
+        full_name:
+          type: string
+        leave_year_start_month:
+          type: integer
+          format: int64
+        name:
+          type: string
+        ticket:
+          type: string
+          description: From `POST /auth/verify` with purpose `register_org`.
+        timezone:
+          type: string
+        weekend:
+          type:
+          - array
+          - 'null'
+          items:
+            type: string
+          description: Defaults to `["sat","sun"]`.
+      additionalProperties: false
+    RegisteredOrg:
+      type: object
+      required:
+      - org
+      - user
+      properties:
+        org:
+          $ref: '#/components/schemas/OrgSummary'
+        user:
+          $ref: '#/components/schemas/SignedInUser'
+    ReportRow:
+      type: object
+      required:
+      - group
+      - key
+      - leave_type
+      - days
+      properties:
+        days:
+          type: number
+          format: double
+        group:
+          type: string
+          description: The type's name, the employee's name, or `YYYY-MM`.
+        key:
+          type: string
+          description: The type, employee id, or month the row is for.
+        leave_type:
+          $ref: '#/components/schemas/ReportType'
+    ReportType:
+      type: object
+      required:
+      - id
+      - code
+      - name
+      properties:
+        code:
+          type: string
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    RevokeInput:
+      type: object
+      properties:
+        reason:
+          type:
+          - string
+          - 'null'
+          description: Required, up to 500 characters; recorded on the ledger entry.
+    SetupAdmin:
+      type: object
+      required:
+      - full_name
+      - email
+      - code
+      properties:
+        code:
+          type: string
+          description: The 6-digit code sent by `POST /auth/code` with purpose `setup`.
+        email:
+          type: string
+        full_name:
+          type: string
+      additionalProperties: false
+    SetupChecklist:
+      type: object
+      description: Facts behind the setup checklist; the page combines them with what the admin has opened.
+      required:
+      - holidays
+      - approvers
+      - invite
+      properties:
+        approvers:
+          type: boolean
+          description: At least one approver group exists.
+        holidays:
+          type: boolean
+          description: This leave year has holidays.
+        invite:
+          type: boolean
+          description: Someone besides admins has been invited or signed up.
+    SetupOrg:
+      type: object
+      required:
+      - name
+      - timezone
+      - weekend
+      - leave_year_start_month
+      properties:
+        leave_year_start_month:
+          type: integer
+          format: int64
+        name:
+          type: string
+        timezone:
+          type: string
+        weekend:
+          type: array
+          items:
+            type: string
+          description: e.g. `["sat","sun"]`
+      additionalProperties: false
+    SetupStatus:
+      type: object
+      required:
+      - setup_required
+      - mode
+      - holiday_packs
+      properties:
+        holiday_packs:
+          type: array
+          items:
+            $ref: '#/components/schemas/PackInfo'
+        mode:
+          type: string
+          description: '`single` or `multi`'
+        setup_required:
+          type: boolean
+    SignedIn:
+      type: object
+      required:
+      - user
+      properties:
+        user:
+          $ref: '#/components/schemas/SignedInUser'
+    SignedInUser:
+      type: object
+      required:
+      - id
+      - org_id
+      - email
+      - full_name
+      - role
+      properties:
+        email:
+          type: string
+        full_name:
+          type: string
+        id:
+          type: string
+          format: uuid
+        org_id:
+          type: string
+          format: uuid
+        role:
+          type: string
+    SignedUrl:
+      type: object
+      required:
+      - url
+      - expires_at
+      properties:
+        expires_at:
+          type: string
+          format: date-time
+        url:
+          type: string
+    SkippedHoliday:
+      type: object
+      required:
+      - date
+      - name
+      - reason
+      properties:
+        date:
+          type: string
+          format: date
+        name:
+          type: string
+        reason:
+          type: string
+          description: '`exists`: the same date and name is already in the calendar.'
+    SkippedInvite:
+      type: object
+      required:
+      - row
+      - email
+      - reason
+      properties:
+        email:
+          type: string
+        reason:
+          type: string
+          description: '`exists`: already a user of this instance.'
+        row:
+          type: integer
+          minimum: 0
+    TeamAwayItem:
+      type: object
+      description: |-
+        A teammate away on the request's dates. `leave_type` and `reason` are present only when the
+        viewer is an admin or an eligible approver of that teammate (FR-058).
+      required:
+      - full_name
+      - from
+      - to
+      properties:
+        from:
+          type: string
+          format: date
+        full_name:
+          type: string
+        leave_type:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/TypeRef'
+        reason:
+          type:
+          - string
+          - 'null'
+        to:
+          type: string
+          format: date
+    TeamCalendar:
+      type: object
+      required:
+      - month
+      - days
+      properties:
+        days:
+          type: array
+          items:
+            $ref: '#/components/schemas/CalendarDay'
+          description: Days with someone away, in order; other days are omitted.
+        month:
+          type: string
+          description: '`YYYY-MM`'
+    TestEmailBody:
+      type: object
+      required:
+      - setup_token
+      - to
+      properties:
+        setup_token:
+          type: string
+        to:
+          type: string
+      additionalProperties: false
+    TestEmailQueued:
+      type: object
+      required:
+      - to
+      properties:
+        to:
+          type: string
+    TestEmailResult:
+      type: object
+      required:
+      - ok
+      properties:
+        error:
+          type:
+          - string
+          - 'null'
+          description: The SMTP server's error text when sending failed.
+        ok:
+          type: boolean
+    TokenBody:
+      type: object
+      required:
+      - setup_token
+      properties:
+        setup_token:
+          type: string
+      additionalProperties: false
+    TypeRef:
+      type: object
+      required:
+      - id
+      - code
+      - name
+      - color
+      properties:
+        code:
+          type: string
+        color:
+          type: string
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    UpdateCheckStatus:
+      type: object
+      required:
+      - enabled
+      - update_available
+      properties:
+        enabled:
+          type: boolean
+          description: '`LEAVO_UPDATE_CHECK`.'
+        last_checked_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        latest_version:
+          type:
+          - string
+          - 'null'
+        update_available:
+          type: boolean
+          description: A newer release than this one is published.
+    UploadForm:
+      type: object
+      required:
+      - file
+      properties:
+        file:
+          type: string
+          format: binary
+          description: PDF, PNG, JPEG, WebP or HEIC, up to 5 MB. The type is detected from the content.
+    Uploaded:
+      type: object
+      required:
+      - id
+      - name
+      - content_type
+      - size
+      properties:
+        content_type:
+          type: string
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        size:
+          type: integer
+          minimum: 0
+    UsedOn:
+      type: object
+      required:
+      - leave_request_id
+      - from
+      - to
+      - days
+      properties:
+        days:
+          type: number
+          format: double
+        from:
+          type: string
+          format: date
+        leave_request_id:
+          type: string
+          format: uuid
+        to:
+          type: string
+          format: date
+    UserBalances:
+      type: object
+      required:
+      - balances
+      - ledger
+      properties:
+        balances:
+          type: array
+          items:
+            $ref: '#/components/schemas/Balance'
+        ledger:
+          type: array
+          items:
+            $ref: '#/components/schemas/LedgerItem'
+          description: Entries of the leave year (comp-off entries of every year), oldest first.
+    UserHit:
+      type: object
+      required:
+      - id
+      - full_name
+      - email
+      properties:
+        email:
+          type: string
+        full_name:
+          type: string
+        id:
+          type: string
+          format: uuid
+    UserPage:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminUser'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          description: Pass back as `cursor` for the next page; null on the last.
+    Verified:
+      type: object
+      description: Proof of a verified email for `POST /orgs` (purpose `register_org`).
+      required:
+      - verified
+      - ticket
+      properties:
+        ticket:
+          type: string
+          description: Valid for 30 minutes.
+        verified:
+          type: boolean
+    VerifyRequest:
+      type: object
+      required:
+      - email
+      - code
+      - purpose
+      properties:
+        code:
+          type: string
+        email:
+          type: string
+        keep_signed_in:
+          type: boolean
+          description: 30-day session instead of 7 days (FR-005).
+        purpose:
+          $ref: '#/components/schemas/CodePurpose'
+    VerifyResponse:
+      oneOf:
+      - $ref: '#/components/schemas/SignedIn'
+      - $ref: '#/components/schemas/Verified'
+      description: '`login`/`signup`: the signed-in user (and a session cookie); `register_org`: a ticket.'
+    WorkedDate:
+      type: object
+      description: A worked date claimed for comp-off credit (FR-030).
+      required:
+      - date
+      - portion
+      properties:
+        date:
+          type: string
+          format: date
+        portion:
+          type: number
+          format: double
+          description: 1 or 0.5.
+    WorkedDateInput:
+      type: object
+      required:
+      - date
+      - portion
+      properties:
+        date:
+          type: string
+          format: date
+        portion:
+          type: number
+          format: double
+          description: 1 (full day) or 0.5 (half day).
+      additionalProperties: false
+    YearCharge:
+      type: object
+      required:
+      - leave_year
+      - days
+      - available_after
+      properties:
+        available_after:
+          type: number
+          format: double
+        days:
+          type: number
+          format: double
+        leave_year:
+          type: integer
+          format: int32
+tags:
+- name: auth
+  description: Passwordless sign-in with 6-digit email codes
+- name: me
+  description: The signed-in user
+- name: setup
+  description: First-run setup and organization registration
+- name: admin
+  description: Organization administration (Org Admins only)
+- name: leaves
+  description: Leave requests and attachments
+- name: comp-offs
+  description: 'Comp-off credit: requests, credits, revocation'
+- name: approvals
+  description: Approvals inbox and decisions (approvers and admins)

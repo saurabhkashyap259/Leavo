@@ -1,0 +1,155 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all -- --check
+      - run: python3 scripts/validate_holiday_packs.py
+      - run: python3 -m pip install --quiet pytest && python3 -m pytest -q scripts/tests
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      # Integration tests start PostgreSQL through testcontainers (Docker is available on ubuntu-latest).
+      # openapi_test fails if contracts/openapi.yaml is stale.
+      - run: cargo test --workspace
+
+  openapi-compat:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: python3 scripts/ci/openapi_compat.py
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run check:i18n
+      - run: npm test
+      - run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: postgres:latest
+        env:
+          POSTGRES_DB: leavo
+          POSTGRES_USER: leavo
+          POSTGRES_PASSWORD: leavo
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U leavo" --health-interval 2s --health-retries 30
+      mail:
+        image: axllent/mailpit:latest
+        ports: ["1025:1025", "8025:8025"]
+    env:
+      LEAVO_DB_PORT: "5432"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+      - run: npx playwright install --with-deps chromium
+        working-directory: web
+      - run: npm run e2e
+        working-directory: web
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: web/test-results/
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo install cargo-audit --locked
+      - run: cargo audit
+      - run: npm audit --audit-level=high
+        working-directory: web
+
+  # The image an operator gets: built once, then installed from the shipped compose file
+  # (T218, SC-012) and upgraded from the previous release (T217, SC-014).
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          tags: leavo:ci
+          outputs: type=docker,dest=/tmp/leavo-ci.tar
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - uses: actions/upload-artifact@v4
+        with:
+          name: leavo-ci-image
+          path: /tmp/leavo-ci.tar
+          retention-days: 1
+
+  install-smoke:
+    needs: image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: leavo-ci-image
+          path: /tmp
+      - run: docker load -i /tmp/leavo-ci.tar
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci && npx playwright install --with-deps chromium
+        working-directory: web
+      - run: scripts/ci/install_smoke.sh
+        env:
+          IMAGE: leavo:ci
+
+  upgrade-test:
+    needs: image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: leavo-ci-image
+          path: /tmp
+      - run: docker load -i /tmp/leavo-ci.tar
+      - run: scripts/ci/upgrade_test.sh
+        env:
+          NEW_IMAGE: leavo:ci
+          GH_TOKEN: ${{ github.token }}

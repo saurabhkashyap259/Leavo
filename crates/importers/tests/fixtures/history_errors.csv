@@ -1,0 +1,8 @@
+email,leave_type_code,from_date,to_date,days
+asha@acme.test,CL,2026-13-01,2026-11-02,1
+asha@acme.test,CL,2026-11-05,2026-11-04,1
+asha@acme.test,CL,2026-11-09,2026-11-10,0
+asha@acme.test,CL,2026-11-16,2026-11-17,2
+asha@acme.test,CL,2026-11-17,2026-11-18,2
+ravi@acme.test,CL,2026-11-24,2026-11-24,1
+ghost@acme.test,CL,2026-11-02,2026-11-02,1
